@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Pedal Pay</title>
+  <meta name="theme-color" content="#D4471F">
+  <link rel="icon" href="./icons/icon.svg" type="image/svg+xml">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600&display=swap">
+  <link rel="stylesheet" href="./styles.css">
+  <script type="module" src="./src/app.js"></script>
+</head>
+<body>
+  <header class="bar">
+    <img src="./icons/icon.svg" alt="" width="28" height="28">
+    <span class="bar-title">Pedal Pay</span>
+    <button id="open-settings" class="icon-button" type="button" aria-label="Settings" hidden>⚙</button>
+  </header>
+
+  <main>
+    <section id="setup" class="view" hidden>
+      <h1>Welcome to Pedal Pay</h1>
+      <p class="hint">Tell us your commute once. You can change it later in Settings.</p>
+      <form id="setup-form" novalidate>
+        <label for="setup-km">Km per ride</label>
+        <input id="setup-km" inputmode="decimal" autocomplete="off" placeholder="18">
+        <p class="field-error" id="setup-km-error" hidden></p>
+        <label for="setup-rate">Rate per km (€)</label>
+        <input id="setup-rate" inputmode="decimal" autocomplete="off" placeholder="0,36">
+        <p class="field-error" id="setup-rate-error" hidden></p>
+        <button id="setup-save" class="primary" type="submit">Start</button>
+      </form>
+    </section>
+
+    <section id="prompt" class="view" hidden>
+      <h1 class="prompt-question">Did you bike to work today?</h1>
+      <div class="prompt-buttons">
+        <button id="prompt-yes" class="primary big" type="button">Yes</button>
+        <button id="prompt-no" class="secondary big" type="button">No</button>
+      </div>
+      <p id="prompt-saved" class="saved" role="status" hidden>Saved</p>
+    </section>
+
+    <section id="main" class="view" hidden>
+      <div class="numbers">
+        <div class="scope" role="group" aria-label="Show totals for">
+          <button id="scope-month" type="button" aria-pressed="true">This month</button>
+          <button id="scope-year" type="button" aria-pressed="false">This year</button>
+        </div>
+        <div id="stat-km" class="stat-km"></div>
+        <div id="stat-euros" class="stat-euros"></div>
+        <div id="stat-streak" class="stat-streak" hidden></div>
+      </div>
+      <div class="month-nav">
+        <button id="month-prev" class="icon-button" type="button" aria-label="Previous month">‹</button>
+        <h2 id="month-label"></h2>
+        <button id="month-next" class="icon-button" type="button" aria-label="Next month">›</button>
+      </div>
+      <div id="calendar" class="calendar"></div>
+    </section>
+
+    <section id="settings" class="view" hidden>
+      <h1>Settings</h1>
+      <form id="settings-form" novalidate>
+        <label for="settings-km">Km per ride</label>
+        <input id="settings-km" inputmode="decimal" autocomplete="off">
+        <p class="field-error" id="settings-km-error" hidden></p>
+        <label for="settings-rate">Rate per km (€)</label>
+        <input id="settings-rate" inputmode="decimal" autocomplete="off">
+        <p class="field-error" id="settings-rate-error" hidden></p>
+        <div class="form-buttons">
+          <button id="settings-save" class="primary" type="submit">Save</button>
+          <button id="settings-cancel" class="secondary" type="button">Cancel</button>
+        </div>
+      </form>
+      <p class="hint">Your rides are stored only in this browser, on this PC.</p>
+    </section>
+  </main>
+</body>
+</html>
