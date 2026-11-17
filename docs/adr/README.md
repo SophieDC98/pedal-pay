@@ -22,7 +22,7 @@ it to find which decisions bear on a piece of work.
 
 ## App
 
-- [Morning prompt](morning-prompt.md) asked at Windows sign-in, window plus notification.
+- [Morning prompt](morning-prompt.md) a strip over the main screen at the reminder time, plus a notification.
 - [Hosting](hosting.md) static site on GitHub Pages, in English.
 - [Look](look.md) yellow bike on brick orange, night navy in dark mode, round days.
 

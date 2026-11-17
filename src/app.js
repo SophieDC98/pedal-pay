@@ -2,29 +2,37 @@
 
 import { toKey, fromKey, monthDays } from './dates.js';
 import { loadState, saveState, setAnswer, clearAnswer, isSetUp, parseDecimal } from './store.js';
-import { totals, streak, needsPrompt, formatEuros } from './stats.js';
+import { totals, streak, promptDue, needsPrompt, formatEuros } from './stats.js';
 
 const $ = id => document.getElementById(id);
 const storage = (() => { try { return window.localStorage; } catch { return null; } })();
-const views = ['setup', 'prompt', 'main', 'settings'];
+const views = ['setup', 'main', 'settings'];
 const monthName = new Intl.DateTimeFormat('en-GB', { month: 'long', year: 'numeric' });
+const dayName = new Intl.DateTimeFormat('en-GB', { weekday: 'long', day: 'numeric', month: 'long' });
 const WEEKDAYS = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'];
+const SAVED_MS = 900;
 
 let state = loadState(storage);
 let scope = 'month';
 let shown = null; // { year, month0 } of the calendar
+let lastDay = null; // the day the screens were last set up for
 let savedTimer = null;
-let lastDay = null; // the day the screens were last chosen for
 
-// The browser test sets 'pedal-pay-today' to pin the date.
-function today() {
-  try {
-    const pinned = storage?.getItem('pedal-pay-today');
-    if (pinned) return pinned;
-  } catch { /* storage blocked */ }
-  return toKey(new Date());
+// The browser tests pin the date and time with 'pedal-pay-today' and 'pedal-pay-now'.
+function pinned(key) {
+  try { return storage?.getItem(key) || null; } catch { return null; }
 }
-window.pedalPay = { today };
+
+function today() {
+  return pinned('pedal-pay-today') || toKey(new Date());
+}
+
+function minutesNow() {
+  const p = pinned('pedal-pay-now');
+  if (p) return Number(p.slice(0, 2)) * 60 + Number(p.slice(3, 5));
+  const now = new Date();
+  return now.getHours() * 60 + now.getMinutes();
+}
 
 function show(view) {
   for (const v of views) $(v).hidden = v !== view;
@@ -38,25 +46,54 @@ function save(next) {
   $('storage-warning').hidden = saveState(storage, state);
 }
 
-// Picks the screen for the current state and day.
-function start() {
-  clearTimeout(savedTimer);
-  lastDay = today();
-  if (!isSetUp(state)) return show('setup');
-  if (needsPrompt(state, today())) {
-    $('prompt-saved').hidden = true;
-    show('prompt');
-    notify();
-    return;
-  }
-  showMain();
+function resetToToday() {
+  const t = today();
+  const d = fromKey(t);
+  lastDay = t;
+  shown = { year: d.getFullYear(), month0: d.getMonth() };
+  scope = 'month';
 }
 
 function showMain() {
-  const t = fromKey(today());
-  if (!shown) shown = { year: t.getFullYear(), month0: t.getMonth() };
+  if (!shown) resetToToday();
   renderMain();
   show('main');
+}
+
+// Runs at start, on focus, when the window comes back and every minute:
+// moves to a new day and shows the morning prompt once it is due.
+// On the same day it leaves the user where they are.
+function refresh() {
+  if (!isSetUp(state)) return;
+  const t = today();
+  const newDay = t !== lastDay;
+  if (newDay) resetToToday();
+  const inSettings = !$('settings').hidden;
+  if (!inSettings && (newDay || !$('main').hidden)) showMain();
+  if (!inSettings && $('prompt').hidden && promptDue(state, t, minutesNow())) showPrompt();
+}
+
+function showPrompt() {
+  clearTimeout(savedTimer);
+  $('prompt-date').textContent = dayName.format(fromKey(today()));
+  $('prompt-ask').hidden = false;
+  $('prompt-saved').hidden = true;
+  $('prompt').classList.remove('leaving');
+  $('prompt').hidden = false;
+  notify();
+}
+
+function answer(ride) {
+  save(setAnswer(state, today(), ride));
+  renderMain();
+  closeNotification();
+  $('prompt-ask').hidden = true;
+  $('prompt-saved').hidden = false;
+  clearTimeout(savedTimer);
+  savedTimer = setTimeout(() => {
+    $('prompt').classList.add('leaving');
+    savedTimer = setTimeout(() => { $('prompt').hidden = true; }, 350);
+  }, SAVED_MS);
 }
 
 function renderMain() {
@@ -127,16 +164,18 @@ function readNumbers(prefix) {
   return result.kmPerRide !== null && result.ratePerKm !== null ? result : null;
 }
 
-const formatNumber = n => String(n).replace('.', ',');
-
-function answer(ride) {
-  save(setAnswer(state, today(), ride));
-  $('prompt-saved').hidden = false;
-  clearTimeout(savedTimer);
-  savedTimer = setTimeout(showMain, 1200);
+function readReminder() {
+  const input = $('settings-reminder');
+  const ok = /^\d{2}:\d{2}$/.test(input.value);
+  input.setAttribute('aria-invalid', String(!ok));
+  $('settings-reminder-error').hidden = ok;
+  $('settings-reminder-error').textContent = ok ? '' : 'Pick a time, like 09:00';
+  return ok ? input.value : null;
 }
 
-// Sends the morning prompt as a notification too, in case the window opens
+const formatNumber = n => String(n).replace('.', ',');
+
+// Sends the morning prompt as a notification too, in case the window is
 // behind others. Does nothing unless notifications were allowed. Never throws.
 async function notify() {
   try {
@@ -148,7 +187,14 @@ async function notify() {
       icon: './icons/icon-192.png',
       actions: [{ action: 'yes', title: 'Yes' }, { action: 'no', title: 'No' }],
     });
-  } catch { /* the window prompt still works */ }
+  } catch { /* the overlay still works */ }
+}
+
+async function closeNotification() {
+  try {
+    const reg = await navigator.serviceWorker?.getRegistration();
+    for (const n of (await reg?.getNotifications({ tag: 'morning-prompt' })) ?? []) n.close();
+  } catch { /* nothing to close */ }
 }
 
 // Asked once, from the Start button, so the browser accepts the request.
@@ -166,7 +212,8 @@ $('setup-form').addEventListener('submit', e => {
   if (!values) return;
   save({ ...state, ...values });
   askNotificationPermission();
-  start();
+  showMain();
+  refresh();
 });
 
 $('prompt-yes').addEventListener('click', () => answer(true));
@@ -192,51 +239,37 @@ $('calendar').addEventListener('click', e => {
 $('open-settings').addEventListener('click', () => {
   $('settings-km').value = formatNumber(state.kmPerRide);
   $('settings-rate').value = formatNumber(state.ratePerKm);
-  for (const f of ['km', 'rate']) {
+  $('settings-reminder').value = state.reminderTime;
+  for (const f of ['km', 'rate', 'reminder']) {
     $(`settings-${f}`).removeAttribute('aria-invalid');
     $(`settings-${f}-error`).hidden = true;
   }
   show('settings');
 });
-$('settings-cancel').addEventListener('click', showMain);
+$('settings-cancel').addEventListener('click', () => { showMain(); refresh(); });
 $('settings-form').addEventListener('submit', e => {
   e.preventDefault();
   const values = readNumbers('settings');
-  if (!values) return;
-  save({ ...state, ...values });
+  const reminderTime = readReminder();
+  if (!values || !reminderTime) return;
+  save({ ...state, ...values, reminderTime });
   showMain();
+  refresh();
 });
-
-// The app is rarely closed, so a new day is noticed when the window comes
-// back, gets focus, or passes midnight. Same day: leave the user where they are.
-function checkDay() {
-  const t = today();
-  if (t === lastDay) return;
-  const d = fromKey(t);
-  shown = { year: d.getFullYear(), month0: d.getMonth() };
-  scope = 'month';
-  if (!$('settings').hidden && !needsPrompt(state, t)) { lastDay = t; return; }
-  start();
-}
-
-function checkAtMidnight() {
-  const now = new Date();
-  const next = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 5);
-  setTimeout(() => { checkDay(); checkAtMidnight(); }, next - now);
-}
-
-document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible') checkDay();
-});
-window.addEventListener('focus', checkDay);
-checkAtMidnight();
 
 // The notification's Yes and No buttons answer through the service worker.
 navigator.serviceWorker?.addEventListener('message', e => {
   if (e.data?.type === 'answer' && typeof e.data.ride === 'boolean' && needsPrompt(state, today())) {
+    if ($('prompt').hidden) showPrompt();
     answer(e.data.ride);
   }
 });
 navigator.serviceWorker?.register('./sw.js').catch(() => {});
 
-start();
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') refresh();
+});
+window.addEventListener('focus', refresh);
+setInterval(refresh, 60 * 1000);
+
+if (isSetUp(state)) { showMain(); refresh(); } else show('setup');

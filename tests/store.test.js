@@ -62,3 +62,8 @@ test('clearAnswer turns a day back into a missed day without mutating', () => {
   assert.equal('2026-11-16' in b.answers, false);
   assert.equal(a.answers['2026-11-16'], true);
 });
+
+test('the reminder time defaults to 09:00, also for older saved data', () => {
+  assert.equal(emptyState().reminderTime, '09:00');
+  assert.equal(loadState(mem({ 'pedal-pay': '{"version":1,"kmPerRide":18,"ratePerKm":0.36,"answers":{}}' })).reminderTime, '09:00');
+});

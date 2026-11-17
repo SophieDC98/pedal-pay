@@ -7,7 +7,7 @@
 export const STORAGE_KEY = 'pedal-pay';
 
 export function emptyState() {
-  return { version: 1, kmPerRide: null, ratePerKm: null, answers: {} };
+  return { version: 1, kmPerRide: null, ratePerKm: null, reminderTime: '09:00', answers: {} };
 }
 
 export function loadState(storage) {

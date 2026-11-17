@@ -17,6 +17,10 @@ _Avoid_: bike day, trip
 The question "Did you bike today?" asked when the work PC is signed in to.
 _Avoid_: reminder, popup
 
+**Reminder time**:
+The time of day the morning prompt asks, 09:00 unless the user changes it.
+_Avoid_: alarm, notification time
+
 **Missed day**:
 A workday the morning prompt went unanswered. It counts as no ride until
 the user marks it.

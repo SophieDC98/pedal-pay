@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { totals, streak, needsPrompt, formatEuros } from '../src/stats.js';
+import { totals, streak, needsPrompt, promptDue, minutesOf, formatEuros } from '../src/stats.js';
 
 const st = { version: 1, kmPerRide: 18, ratePerKm: 0.36, answers: {
   '2026-10-30': true, '2026-11-02': true, '2026-11-03': true, '2026-11-04': false,
@@ -43,4 +43,20 @@ test('formatEuros', () => {
   assert.equal(formatEuros(64.8), '€64.80');
   assert.equal(formatEuros(1234.5), '€1,234.50');
   assert.equal(formatEuros(0), '€0.00');
+});
+
+test('promptDue waits for the reminder time on a workday without an answer', () => {
+  const s = { ...st, reminderTime: '09:00' };
+  assert.equal(promptDue(s, '2026-11-18', 8 * 60 + 59), false);
+  assert.equal(promptDue(s, '2026-11-18', 9 * 60), true);
+  assert.equal(promptDue(s, '2026-11-18', 14 * 60), true);
+  assert.equal(promptDue(s, '2026-11-17', 10 * 60), false);  // answered
+  assert.equal(promptDue(s, '2026-11-21', 10 * 60), false);  // Saturday
+  assert.equal(promptDue({ ...s, reminderTime: '07:15' }, '2026-11-18', 7 * 60 + 15), true);
+});
+
+test('minutesOf reads HH:MM and falls back to 09:00', () => {
+  assert.equal(minutesOf('07:15'), 435);
+  assert.equal(minutesOf('nonsense'), 540);
+  assert.equal(minutesOf(undefined), 540);
 });

@@ -34,6 +34,18 @@ export function needsPrompt(state, todayKey) {
   return isWorkday(todayKey) && !(todayKey in state.answers);
 }
 
+// Minutes after midnight for an 'HH:MM' time; 09:00 when it cannot be read.
+export function minutesOf(time) {
+  const m = /^(\d{2}):(\d{2})$/.exec(time ?? '');
+  if (!m || Number(m[1]) > 23 || Number(m[2]) > 59) return 9 * 60;
+  return Number(m[1]) * 60 + Number(m[2]);
+}
+
+// The morning prompt shows once the reminder time has passed on a day that needs it.
+export function promptDue(state, todayKey, minutesNow) {
+  return needsPrompt(state, todayKey) && minutesNow >= minutesOf(state.reminderTime);
+}
+
 const euroFormat = new Intl.NumberFormat('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 export function formatEuros(n) {

@@ -37,6 +37,7 @@ async function openApp(today, storage = {}) {
     if (!sessionStorage.getItem('seeded')) {
       sessionStorage.setItem('seeded', '1');
       localStorage.setItem('pedal-pay-today', t);
+      localStorage.setItem('pedal-pay-now', '09:30');
       for (const [k, v] of Object.entries(s)) localStorage.setItem(k, v);
     }
   }, [today, storage]);
@@ -148,6 +149,7 @@ test('with notifications allowed, the morning prompt also sends one', async () =
   await context.grantPermissions(['notifications'], { origin: base.slice(0, -1) });
   await context.addInitScript(s => {
     localStorage.setItem('pedal-pay-today', '2026-11-18');
+    localStorage.setItem('pedal-pay-now', '09:30');
     localStorage.setItem('pedal-pay', s);
   }, state);
   const page = await context.newPage();
@@ -178,6 +180,7 @@ test('refocusing does not pile up service worker listeners', async () => {
     if (!sessionStorage.getItem('seeded')) {
       sessionStorage.setItem('seeded', '1');
       localStorage.setItem('pedal-pay-today', '2026-11-17');
+      localStorage.setItem('pedal-pay-now', '09:30');
       localStorage.setItem('pedal-pay', s);
     }
     window.__messageListeners = 0;
@@ -224,6 +227,7 @@ test('when the browser refuses to save, the user is told and rides are kept in t
   const context = await browser.newContext({ serviceWorkers: 'block' });
   await context.addInitScript(() => {
     localStorage.setItem('pedal-pay-today', '2026-11-17');
+    localStorage.setItem('pedal-pay-now', '09:30');
     Storage.prototype.setItem = function () { throw new Error('QuotaExceededError'); };
   });
   const page = await context.newPage();
@@ -250,5 +254,42 @@ test('unmarking a missed day again does not break the streak', async () => {
   await page.click('#calendar [data-key="2026-11-16"]');
   await page.click('#calendar [data-key="2026-11-16"]');
   assert.match(await page.textContent('#stat-streak'), /2-day streak/);
+  await context.close();
+});
+
+test('the prompt is a strip over the main screen', async () => {
+  const { page, context } = await openApp('2026-11-18', { 'pedal-pay': setUpState({ '2026-11-17': true }) });
+  await visible(page, '#prompt');
+  assert.equal(await page.isHidden('#main'), false);
+  assert.match(await page.textContent('#prompt'), /Biked to work today\?/);
+  assert.match(await page.textContent('#prompt-date'), /Wednesday 18 November/);
+  await page.click('#prompt-no');
+  await visible(page, '#prompt-saved');
+  await page.waitForSelector('#prompt', { state: 'hidden', timeout: 5000 });
+  await context.close();
+});
+
+test('before the reminder time there is no prompt; once it passes there is', async () => {
+  const { page, context } = await openApp('2026-11-18', { 'pedal-pay': setUpState({ '2026-11-17': true }), 'pedal-pay-now': '08:30' });
+  await visible(page, '#main');
+  assert.equal(await page.isHidden('#prompt'), true);
+  await page.evaluate(() => {
+    localStorage.setItem('pedal-pay-now', '09:00');
+    window.dispatchEvent(new Event('focus'));
+  });
+  await visible(page, '#prompt');
+  await context.close();
+});
+
+test('the reminder time is saved in Settings', async () => {
+  const { page, context } = await openApp('2026-11-17', { 'pedal-pay': setUpState({ '2026-11-17': true }) });
+  await visible(page, '#main');
+  await page.click('#open-settings');
+  assert.equal(await page.inputValue('#settings-reminder'), '09:00');
+  await page.fill('#settings-reminder', '07:45');
+  await page.click('#settings-save');
+  await visible(page, '#main');
+  const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('pedal-pay')).reminderTime);
+  assert.equal(saved, '07:45');
   await context.close();
 });

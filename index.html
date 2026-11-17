@@ -36,14 +36,6 @@
       </form>
     </section>
 
-    <section id="prompt" class="view" hidden>
-      <h1 class="prompt-question">Did you bike to work today?</h1>
-      <div class="prompt-buttons">
-        <button id="prompt-yes" class="primary big" type="button">Yes</button>
-        <button id="prompt-no" class="secondary big" type="button">No</button>
-      </div>
-      <p id="prompt-saved" class="saved" role="status" hidden>Saved</p>
-    </section>
 
     <section id="main" class="view" hidden>
       <div class="numbers">
@@ -72,6 +64,10 @@
         <label for="settings-rate">Rate per km (€)</label>
         <input id="settings-rate" inputmode="decimal" autocomplete="off">
         <p class="field-error" id="settings-rate-error" hidden></p>
+        <label for="settings-reminder">Ask me at</label>
+        <input id="settings-reminder" type="time" step="60">
+        <p class="field-error" id="settings-reminder-error" hidden></p>
+        <p class="hint small">On workdays. If your PC starts later, Pedal Pay asks as soon as it opens.</p>
         <div class="form-buttons">
           <button id="settings-save" class="primary" type="submit">Save</button>
           <button id="settings-cancel" class="secondary" type="button">Cancel</button>
@@ -80,5 +76,18 @@
       <p class="hint">Your rides are stored only in this browser, on this PC.</p>
     </section>
   </main>
+
+  <div id="prompt" class="overlay" hidden>
+    <div class="scrim"></div>
+    <div class="strip" role="dialog" aria-modal="true" aria-labelledby="prompt-question">
+      <img src="./icons/icon.svg" alt="" width="36" height="36">
+      <div id="prompt-ask" class="strip-ask">
+        <p class="strip-question"><span id="prompt-question">Biked to work today?</span><small id="prompt-date"></small></p>
+        <button id="prompt-yes" class="primary" type="button">Yes</button>
+        <button id="prompt-no" class="secondary" type="button">No</button>
+      </div>
+      <p id="prompt-saved" class="saved" role="status" hidden>Saved ✓</p>
+    </div>
+  </div>
 </body>
 </html>

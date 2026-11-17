@@ -15,6 +15,8 @@
   --bar: #D4471F;
   --on-bar: #FFFFFF;
   --error: #B3261E;
+  --scrim: rgba(43, 26, 20, .28);
+  --strip: #FFFFFF;
   --font: "Fredoka", system-ui, sans-serif;
   color-scheme: light;
 }
@@ -36,6 +38,8 @@
     --bar: #1E2640;
     --on-bar: #EDF0F8;
     --error: #FF8A80;
+    --scrim: rgba(5, 8, 18, .55);
+    --strip: #26304F;
     color-scheme: dark;
   }
 }
@@ -56,6 +60,9 @@ button { font: inherit; color: inherit; cursor: pointer; }
 button:focus-visible, input:focus-visible { outline: 2px solid var(--sun); outline-offset: 2px; }
 
 .bar {
+  position: relative;
+  z-index: 6;
+  height: 52px;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -82,6 +89,7 @@ main { max-width: 420px; margin: 0 auto; padding: 20px 16px 32px; }
 h1 { font-size: 1.5rem; font-weight: 600; margin: 0; text-wrap: balance; }
 h2 { font-size: 1.1rem; font-weight: 600; margin: 0; }
 .hint { color: var(--muted); margin: 0; }
+.hint.small { font-size: .85rem; }
 
 form { display: flex; flex-direction: column; gap: 6px; }
 label { font-weight: 500; margin-top: 8px; }
@@ -113,11 +121,6 @@ input[aria-invalid="true"] { border-color: var(--error); }
 .primary { background: var(--brand); color: var(--on-brand); }
 .secondary { background: transparent; color: var(--brand); }
 form > .primary { margin-top: 14px; }
-.big { font-size: 1.3rem; padding: 14px 0; flex: 1; }
-
-.prompt-question { text-align: center; margin-top: 24px; }
-.prompt-buttons { display: flex; gap: 14px; }
-.saved { text-align: center; font-size: 1.2rem; font-weight: 600; color: var(--brand); margin: 0; }
 
 .numbers { display: flex; flex-direction: column; align-items: center; gap: 4px; text-align: center; }
 .scope { display: inline-flex; background: var(--day); border-radius: 999px; padding: 3px; margin-bottom: 8px; }
@@ -158,6 +161,35 @@ form > .primary { margin-top: 14px; }
 .calendar .day.today { box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--sun); }
 .calendar .day:disabled { opacity: .35; cursor: default; }
 
+/* Morning prompt: a strip over the main screen, under the title bar */
+.overlay { position: fixed; inset: 0; z-index: 5; }
+.scrim { position: absolute; inset: 0; background: var(--scrim); }
+.strip {
+  position: absolute;
+  top: calc(52px + 10px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(420px - 20px, calc(100% - 20px));
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: var(--strip);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .25);
+}
+.strip img { flex: none; }
+.strip-ask { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.strip-question { flex: 1; min-width: 9em; margin: 0; font-weight: 600; line-height: 1.2; }
+.strip-question small { display: block; font-weight: 400; font-size: .75rem; color: var(--muted); }
+.strip .primary, .strip .secondary { padding: 7px 14px; }
+.saved { flex: 1; text-align: center; font-size: 1.1rem; font-weight: 600; color: var(--brand); margin: 0; }
+
 @media (prefers-reduced-motion: no-preference) {
   .calendar .day { transition: background-color .15s; }
+  .scrim { transition: opacity .3s; }
+  .strip { animation: drop-in .35s ease; transition: transform .35s ease, opacity .35s; }
+  .overlay.leaving .scrim { opacity: 0; }
+  .overlay.leaving .strip { transform: translate(-50%, -140%); opacity: 0; }
 }
+@keyframes drop-in { from { transform: translate(-50%, -140%); opacity: 0; } }
