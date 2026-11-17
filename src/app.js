@@ -133,15 +133,45 @@ function answer(ride) {
   savedTimer = setTimeout(showMain, 1200);
 }
 
-// Filled in by the notifications step. Never throws.
-async function notify() {}
+// Sends the morning prompt as a notification too, in case the window opens
+// behind others. Does nothing unless notifications were allowed. Never throws.
+async function notify() {
+  try {
+    if (!('Notification' in window) || Notification.permission !== 'granted') return;
+    const reg = await navigator.serviceWorker?.ready;
+    if (!reg) return;
+    await reg.showNotification('Did you bike to work today?', {
+      tag: 'morning-prompt',
+      icon: './icons/icon-192.png',
+      actions: [{ action: 'yes', title: 'Yes' }, { action: 'no', title: 'No' }],
+    });
+  } catch { /* the window prompt still works */ }
+}
+
+// Asked once, from the Start button, so the browser accepts the request.
+function askNotificationPermission() {
+  try {
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission().catch(() => {});
+    }
+  } catch { /* not supported */ }
+}
 
 $('setup-form').addEventListener('submit', e => {
   e.preventDefault();
   const values = readNumbers('setup');
   if (!values) return;
   save({ ...state, ...values });
-  start();
+  askNotificationPermission();
+  // The notification's Yes and No buttons answer through the service worker.
+navigator.serviceWorker?.addEventListener('message', e => {
+  if (e.data?.type === 'answer' && typeof e.data.ride === 'boolean' && needsPrompt(state, today())) {
+    answer(e.data.ride);
+  }
+});
+navigator.serviceWorker?.register('./sw.js').catch(() => {});
+
+start();
 });
 
 $('prompt-yes').addEventListener('click', () => answer(true));
@@ -181,7 +211,23 @@ document.addEventListener('visibilitychange', () => {
   if (document.visibilityState !== 'visible') return;
   const t = fromKey(today());
   shown = { year: t.getFullYear(), month0: t.getMonth() };
-  start();
+  // The notification's Yes and No buttons answer through the service worker.
+navigator.serviceWorker?.addEventListener('message', e => {
+  if (e.data?.type === 'answer' && typeof e.data.ride === 'boolean' && needsPrompt(state, today())) {
+    answer(e.data.ride);
+  }
 });
+navigator.serviceWorker?.register('./sw.js').catch(() => {});
+
+start();
+});
+
+// The notification's Yes and No buttons answer through the service worker.
+navigator.serviceWorker?.addEventListener('message', e => {
+  if (e.data?.type === 'answer' && typeof e.data.ride === 'boolean' && needsPrompt(state, today())) {
+    answer(e.data.ride);
+  }
+});
+navigator.serviceWorker?.register('./sw.js').catch(() => {});
 
 start();

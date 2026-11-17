@@ -22,7 +22,8 @@ before(async () => {
   for (let i = 0; i < 50; i++) {
     try { await fetch(base); break; } catch { await new Promise(r => setTimeout(r, 100)); }
   }
-  browser = await chromium.launch();
+  // The 'chromium' channel (new headless) supports notifications; the default shell does not.
+  browser = await chromium.launch({ channel: 'chromium' });
 });
 
 after(async () => {
@@ -121,5 +122,49 @@ test('month navigation crosses the year boundary', async () => {
   await page.click('#month-next');
   await page.click('#month-next');
   assert.equal(await page.textContent('#month-label'), 'January 2027');
+  await context.close();
+});
+
+test('the app is installable: manifest, icons and a service worker', async () => {
+  const manifest = await (await fetch(new URL('manifest.webmanifest', base))).json();
+  assert.equal(manifest.name, 'Pedal Pay');
+  assert.equal(manifest.start_url, './');
+  assert.equal(manifest.display, 'standalone');
+  for (const icon of manifest.icons) {
+    const res = await fetch(new URL(icon.src, base));
+    assert.equal(res.status, 200, icon.src);
+  }
+  const context = await browser.newContext();
+  const page = await context.newPage();
+  await page.goto(base);
+  const scope = await page.evaluate(async () => (await navigator.serviceWorker.ready).scope);
+  assert.equal(scope, base);
+  await context.close();
+});
+
+test('with notifications allowed, the morning prompt also sends one', async () => {
+  const state = JSON.stringify({ version: 1, kmPerRide: 18, ratePerKm: 0.36, answers: {} });
+  const context = await browser.newContext();
+  await context.grantPermissions(['notifications'], { origin: base.slice(0, -1) });
+  await context.addInitScript(s => {
+    localStorage.setItem('pedal-pay-today', '2026-11-18');
+    localStorage.setItem('pedal-pay', s);
+  }, state);
+  const page = await context.newPage();
+  const errors = [];
+  page.on('pageerror', e => errors.push(e.message));
+  await page.goto(base);
+  await page.waitForSelector('#prompt:not([hidden])');
+  const titles = await page.evaluate(async () => {
+    const reg = await navigator.serviceWorker.ready;
+    for (let i = 0; i < 20; i++) {
+      const list = await reg.getNotifications({ tag: 'morning-prompt' });
+      if (list.length) return list.map(n => n.title);
+      await new Promise(r => setTimeout(r, 100));
+    }
+    return [];
+  });
+  assert.deepEqual(titles, ['Did you bike to work today?']);
+  assert.deepEqual(errors, []);
   await context.close();
 });
