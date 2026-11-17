@@ -15,3 +15,16 @@ remembering, and the consequences only when they are not obvious.
 
 The list below groups the topics by area, one line each. It is the map: read
 it to find which decisions bear on a piece of work.
+
+## Data
+
+- [Storage](storage.md) rides live in the browser on the work PC, no server.
+
+## App
+
+- [Morning prompt](morning-prompt.md) asked at Windows sign-in, window plus notification.
+- [Hosting](hosting.md) static site on GitHub Pages, in English.
+
+## ERPx
+
+- [ERPx fill](erpx-fill.md) the fill bookmark fetches rides through a small window, then a review panel.

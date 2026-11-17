@@ -9,3 +9,8 @@ to its roadmap entry, and once built it reads `built`, with a link to the
 decision that settled it. The file stays either way.
 
 Each idea gets one line below, a link and a few words.
+
+- [Streak](streak.md) shows the current streak in the app.
+- [Yearly overview](yearly-overview.md) an overview with achievements and totals.
+- [Car allowance](car-allowance.md) logging car commutes as well.
+- [Backup](backup.md) exporting the logged rides to a file and importing them again.
