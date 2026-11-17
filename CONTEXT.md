@@ -26,6 +26,10 @@ _Avoid_: skipped day
 The distance claimed for one ride, the same every day for one user.
 _Avoid_: distance, kilometres
 
+**Rate per km**:
+The euros the employer pays for one km biked, set by each user.
+_Avoid_: tariff, price
+
 **Allowance line**:
 One bike allowance expense line in ERPx, of type FIETSVG, for one ride.
 _Avoid_: expense, row

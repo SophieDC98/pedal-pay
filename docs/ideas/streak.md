@@ -1,6 +1,6 @@
 # Streak
 
-Status: idea.
+Status: planned, in [App](../roadmap/app.md).
 
 ## What it does
 

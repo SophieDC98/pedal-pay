@@ -24,6 +24,7 @@ it to find which decisions bear on a piece of work.
 
 - [Morning prompt](morning-prompt.md) asked at Windows sign-in, window plus notification.
 - [Hosting](hosting.md) static site on GitHub Pages, in English.
+- [Look](look.md) yellow bike on brick orange, night navy in dark mode, round days.
 
 ## ERPx
 
