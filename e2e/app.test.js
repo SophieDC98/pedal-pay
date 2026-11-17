@@ -168,3 +168,87 @@ test('with notifications allowed, the morning prompt also sends one', async () =
   assert.deepEqual(errors, []);
   await context.close();
 });
+
+const setUpState = answers => JSON.stringify({ version: 1, kmPerRide: 18, ratePerKm: 0.36, answers });
+const refocus = page => page.evaluate(() => document.dispatchEvent(new Event('visibilitychange')));
+
+test('refocusing does not pile up service worker listeners', async () => {
+  const context = await browser.newContext({ serviceWorkers: 'block' });
+  await context.addInitScript(s => {
+    if (!sessionStorage.getItem('seeded')) {
+      sessionStorage.setItem('seeded', '1');
+      localStorage.setItem('pedal-pay-today', '2026-11-17');
+      localStorage.setItem('pedal-pay', s);
+    }
+    window.__messageListeners = 0;
+    const add = EventTarget.prototype.addEventListener;
+    EventTarget.prototype.addEventListener = function (type, ...rest) {
+      if (type === 'message' && typeof ServiceWorkerContainer !== 'undefined' && this instanceof ServiceWorkerContainer) window.__messageListeners++;
+      return add.call(this, type, ...rest);
+    };
+  }, setUpState({ '2026-11-17': true }));
+  const page = await context.newPage();
+  await page.goto(base);
+  await visible(page, '#main');
+  for (let i = 0; i < 3; i++) await refocus(page);
+  assert.equal(await page.evaluate(() => window.__messageListeners), 1);
+  await context.close();
+});
+
+test('refocusing on the same day keeps Settings and the shown month', async () => {
+  const { page, context } = await openApp('2026-11-17', { 'pedal-pay': setUpState({ '2026-11-17': true }) });
+  await visible(page, '#main');
+  await page.click('#month-prev');
+  await refocus(page);
+  assert.equal(await page.textContent('#month-label'), 'October 2026');
+  await page.click('#open-settings');
+  await page.fill('#settings-rate', '0,40');
+  await refocus(page);
+  assert.equal(await page.isHidden('#settings'), false);
+  assert.equal(await page.inputValue('#settings-rate'), '0,40');
+  await context.close();
+});
+
+test('a new day is noticed on window focus too', async () => {
+  const { page, context } = await openApp('2026-11-17', { 'pedal-pay': setUpState({ '2026-11-17': true }) });
+  await visible(page, '#main');
+  await page.evaluate(() => {
+    localStorage.setItem('pedal-pay-today', '2026-11-18');
+    window.dispatchEvent(new Event('focus'));
+  });
+  await visible(page, '#prompt');
+  await context.close();
+});
+
+test('when the browser refuses to save, the user is told and rides are kept in the window', async () => {
+  const context = await browser.newContext({ serviceWorkers: 'block' });
+  await context.addInitScript(() => {
+    localStorage.setItem('pedal-pay-today', '2026-11-17');
+    Storage.prototype.setItem = function () { throw new Error('QuotaExceededError'); };
+  });
+  const page = await context.newPage();
+  await page.goto(base);
+  await visible(page, '#setup');
+  await page.fill('#setup-km', '18');
+  await page.fill('#setup-rate', '0,36');
+  await page.click('#setup-save');
+  await visible(page, '#storage-warning');
+  await visible(page, '#prompt');
+  await page.click('#prompt-yes');
+  await visible(page, '#main');
+  await page.click('#calendar [data-key="2026-11-16"]');
+  await refocus(page);
+  assert.match(await page.textContent('#stat-km'), /36/);
+  await context.close();
+});
+
+test('unmarking a missed day again does not break the streak', async () => {
+  // 13 and 16 missed; 12 and 17 rides: streak 2
+  const { page, context } = await openApp('2026-11-17', { 'pedal-pay': setUpState({ '2026-11-12': true, '2026-11-17': true }) });
+  await visible(page, '#main');
+  assert.match(await page.textContent('#stat-streak'), /2-day streak/);
+  await page.click('#calendar [data-key="2026-11-16"]');
+  await page.click('#calendar [data-key="2026-11-16"]');
+  assert.match(await page.textContent('#stat-streak'), /2-day streak/);
+  await context.close();
+});

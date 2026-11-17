@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { emptyState, loadState, saveState, setAnswer, isSetUp, parseDecimal, STORAGE_KEY } from '../src/store.js';
+import { emptyState, loadState, saveState, setAnswer, clearAnswer, isSetUp, parseDecimal, STORAGE_KEY } from '../src/store.js';
 
 const mem = (init = {}) => {
   const m = new Map(Object.entries(init));
@@ -54,4 +54,11 @@ test('parseDecimal accepts comma and dot', () => {
   assert.equal(parseDecimal('-2'), null);
   assert.equal(parseDecimal(''), null);
   assert.equal(parseDecimal('1,2,3'), null);
+});
+
+test('clearAnswer turns a day back into a missed day without mutating', () => {
+  const a = setAnswer(emptyState(), '2026-11-16', true);
+  const b = clearAnswer(a, '2026-11-16');
+  assert.equal('2026-11-16' in b.answers, false);
+  assert.equal(a.answers['2026-11-16'], true);
 });

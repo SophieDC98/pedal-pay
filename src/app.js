@@ -1,7 +1,7 @@
 // Pedal Pay's screens. The only module that touches the page, storage and notifications.
 
 import { toKey, fromKey, monthDays } from './dates.js';
-import { loadState, saveState, setAnswer, isSetUp, parseDecimal } from './store.js';
+import { loadState, saveState, setAnswer, clearAnswer, isSetUp, parseDecimal } from './store.js';
 import { totals, streak, needsPrompt, formatEuros } from './stats.js';
 
 const $ = id => document.getElementById(id);
@@ -14,6 +14,7 @@ let state = loadState(storage);
 let scope = 'month';
 let shown = null; // { year, month0 } of the calendar
 let savedTimer = null;
+let lastDay = null; // the day the screens were last chosen for
 
 // The browser test sets 'pedal-pay-today' to pin the date.
 function today() {
@@ -30,15 +31,17 @@ function show(view) {
   $('open-settings').hidden = view !== 'main';
 }
 
+// Keeps the state in the window even when the browser refuses to store it,
+// and tells the user that it will not be kept.
 function save(next) {
   state = next;
-  saveState(storage, state);
+  $('storage-warning').hidden = saveState(storage, state);
 }
 
 // Picks the screen for the current state and day.
 function start() {
   clearTimeout(savedTimer);
-  state = loadState(storage);
+  lastDay = today();
   if (!isSetUp(state)) return show('setup');
   if (needsPrompt(state, today())) {
     $('prompt-saved').hidden = true;
@@ -163,15 +166,7 @@ $('setup-form').addEventListener('submit', e => {
   if (!values) return;
   save({ ...state, ...values });
   askNotificationPermission();
-  // The notification's Yes and No buttons answer through the service worker.
-navigator.serviceWorker?.addEventListener('message', e => {
-  if (e.data?.type === 'answer' && typeof e.data.ride === 'boolean' && needsPrompt(state, today())) {
-    answer(e.data.ride);
-  }
-});
-navigator.serviceWorker?.register('./sw.js').catch(() => {});
-
-start();
+  start();
 });
 
 $('prompt-yes').addEventListener('click', () => answer(true));
@@ -185,7 +180,12 @@ $('month-next').addEventListener('click', () => moveMonth(1));
 $('calendar').addEventListener('click', e => {
   const b = e.target.closest('button.day');
   if (!b || b.disabled) return;
-  save(setAnswer(state, b.dataset.key, state.answers[b.dataset.key] !== true));
+  const key = b.dataset.key;
+  // Unmarking a past day makes it a missed day again, so fixing a slip never
+  // breaks the streak; unmarking today is a real "No".
+  if (state.answers[key] !== true) save(setAnswer(state, key, true));
+  else if (key === today()) save(setAnswer(state, key, false));
+  else save(clearAnswer(state, key));
   renderMain();
 });
 
@@ -207,20 +207,29 @@ $('settings-form').addEventListener('submit', e => {
   showMain();
 });
 
-document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState !== 'visible') return;
-  const t = fromKey(today());
-  shown = { year: t.getFullYear(), month0: t.getMonth() };
-  // The notification's Yes and No buttons answer through the service worker.
-navigator.serviceWorker?.addEventListener('message', e => {
-  if (e.data?.type === 'answer' && typeof e.data.ride === 'boolean' && needsPrompt(state, today())) {
-    answer(e.data.ride);
-  }
-});
-navigator.serviceWorker?.register('./sw.js').catch(() => {});
+// The app is rarely closed, so a new day is noticed when the window comes
+// back, gets focus, or passes midnight. Same day: leave the user where they are.
+function checkDay() {
+  const t = today();
+  if (t === lastDay) return;
+  const d = fromKey(t);
+  shown = { year: d.getFullYear(), month0: d.getMonth() };
+  scope = 'month';
+  if (!$('settings').hidden && !needsPrompt(state, t)) { lastDay = t; return; }
+  start();
+}
 
-start();
+function checkAtMidnight() {
+  const now = new Date();
+  const next = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 5);
+  setTimeout(() => { checkDay(); checkAtMidnight(); }, next - now);
+}
+
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') checkDay();
 });
+window.addEventListener('focus', checkDay);
+checkAtMidnight();
 
 // The notification's Yes and No buttons answer through the service worker.
 navigator.serviceWorker?.addEventListener('message', e => {

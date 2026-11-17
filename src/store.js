@@ -35,6 +35,12 @@ export function setAnswer(state, key, ride) {
   return { ...state, answers: { ...state.answers, [key]: ride } };
 }
 
+export function clearAnswer(state, key) {
+  const answers = { ...state.answers };
+  delete answers[key];
+  return { ...state, answers };
+}
+
 export function isSetUp(state) {
   return state.kmPerRide > 0 && state.ratePerKm > 0;
 }
