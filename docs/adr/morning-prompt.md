@@ -8,3 +8,10 @@ cannot reliably wake itself at a set time, so sign-in is the moment it asks.
 
 A missed day counts as no ride. The user can still mark it in the app's month
 calendar.
+
+The notification carries Yes and No buttons that answer through the service
+worker. Notifications are only asked for once, from the first-run Start
+button, and the window prompt works without them.
+
+The streak counts workdays in a row with a ride. Weekends, holidays and missed
+days are skipped; a "No" ends it.

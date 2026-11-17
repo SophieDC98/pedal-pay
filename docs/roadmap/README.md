@@ -6,6 +6,6 @@ what it depends on and the decisions it is bound by, linked rather than
 restated. The order lives only in the list below. Inserting an entry is a new
 file and one new line here, and nothing is ever renumbered.
 
-1. [App](app.md) not started.
+1. [App](app.md) done.
 2. [Fill bookmark](fill-bookmark.md) not started.
 3. [Install page](install-page.md) not started.

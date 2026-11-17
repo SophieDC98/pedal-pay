@@ -1,0 +1,53 @@
+# Pedal Pay
+
+Log your bike commutes in a tap, claim your bike allowance in ERPx in one click.
+
+Every workday morning Pedal Pay asks whether you biked to work. It counts your
+km, what they are worth and your streak, and keeps a month calendar where you
+can fix any day. Filling the rides into ERPx comes next, with the fill
+bookmark.
+
+## Install it
+
+1. Open https://sophiedc98.github.io/pedal-pay/ in Microsoft Edge.
+2. Click the **App available** icon in the address bar (or **⋯ → Apps →
+   Install this site as an app**) and choose **Install**.
+3. Enter your **km per ride** and your **rate per km** (for example `18` and
+   `0,36`), press **Start**, and allow notifications.
+
+## Let it ask you every morning
+
+Pedal Pay asks when it starts, so let Edge start it when you sign in to
+Windows:
+
+1. Go to `edge://apps` in Edge.
+2. Right-click **Pedal Pay** (or open its **Details**).
+3. Switch on **Start app when you sign in**.
+
+On workdays (Monday to Friday, not on Belgian public holidays) it then shows
+"Did you bike to work today?" with a notification. A day you don't answer
+counts as no ride; tap it in the calendar to change it.
+
+## Good to know
+
+- Change your km per ride or rate per km with the ⚙ button.
+- Your rides are stored only in this browser, on this PC. Clearing Edge's site
+  data for Pedal Pay removes them.
+- Weekends and Belgian public holidays don't break your streak, and neither do
+  days you didn't answer. Answering "No" does.
+
+## Credits
+
+The ERPx automation and the Belgian holiday rules come from a colleague's
+ERPx bike allowance script, reused with their consent.
+
+## For developers
+
+No build step and no dependencies: the site is served as-is.
+
+```bash
+npm run serve        # http://localhost:8000
+npm test             # unit tests
+npm run test:e2e     # browser tests (needs Playwright with Chromium)
+node scripts/make-icons.mjs   # re-render the PNG icons from icons/icon.svg
+```

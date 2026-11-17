@@ -1,6 +1,6 @@
 # Streak
 
-Status: planned, in [App](../roadmap/app.md).
+Status: built, settled in [Morning prompt](../adr/morning-prompt.md).
 
 ## What it does
 

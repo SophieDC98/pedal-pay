@@ -43,4 +43,7 @@ it built is marked `built`, any choice made on the way is in its decision, and
 
 ## Build and run
 
-None yet.
+- `npm run serve` serves the site at http://localhost:8000.
+- `npm test` runs the unit tests.
+- `npm run test:e2e` runs the browser tests with Playwright.
+- `node scripts/make-icons.mjs` re-renders the PNG icons from `icons/icon.svg`.

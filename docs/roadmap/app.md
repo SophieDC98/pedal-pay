@@ -1,6 +1,6 @@
 # App
 
-Status: not started.
+Status: done.
 
 The installable app, the first thing colleagues use every day.
 
