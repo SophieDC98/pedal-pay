@@ -1,0 +1,10 @@
+{
+  "name": "pedal-pay",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test tests/*.test.js",
+    "test:e2e": "node --test e2e/*.test.js",
+    "serve": "python3 -m http.server 8000"
+  }
+}
