@@ -47,4 +47,7 @@ The ERPx automation comes from a colleague's console script, reused with
 their consent and credited in the README. Where that script paused a fixed
 1.8 seconds per day, the bookmark waits until ERPx is ready for each step and
 checks the line was saved with its date, so it is as fast as ERPx allows and
-stops rather than leave a half-filled line.
+stops rather than leave a half-filled line. Choosing the category makes ERPx
+fill in defaults a moment later, including today's date, so every value the
+bookmark sets must stay put for a moment; one that ERPx overwrites is set
+again.

@@ -40,7 +40,13 @@
       isVisible: () => open(),
       getValue: () => editing?.data.expenseType,
       getStore: () => ({ findRecord: (field, value) => (value === 'FIETSVG' ? { value } : null) }),
-      select(record) { editing.data.expenseType = record.value; },
+      select(record) {
+        const line = editing;
+        line.data.expenseType = record.value;
+        // Like the real ERPx: choosing a category fills in defaults a moment
+        // later, including today's date.
+        if (window.fake.defaultsOnType) setTimeout(() => { line.data.expenseDate = new Date(2026, 10, 18); }, window.fake.delay + 60);
+      },
     };
     const datefield = { name: 'expenseDate', isVisible: () => open(), getValue: () => editing?.data.expenseDate, setValue(d) {
       if (window.fake.failOnDay === d.getDate()) throw new Error('ERPx hiccup');
@@ -63,7 +69,7 @@
     });
     // Deletes the whole claim. The panel must never press it.
     document.querySelector('[data-u4id="delete"]').addEventListener('click', () => { records.length = 0; window.fake.claimDeleted = true; });
-    window.fake = { records, purpose, failOnDay: null, noGrid: false, noConfirm: false, claimDeleted: false, delay: 80 };
+    window.fake = { records, purpose, failOnDay: null, noGrid: false, noConfirm: false, claimDeleted: false, delay: 80, defaultsOnType: false };
   </script>
 </body>
 </html>

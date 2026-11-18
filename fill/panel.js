@@ -120,29 +120,52 @@ function hasBikeLine(key) {
   return found;
 }
 
+// Sets a value and makes sure it stays: ERPx fills in defaults a moment after
+// choosing the category (the date becomes today), so a value that gets
+// overwritten is set again. It must hold for holdMs before going on.
+async function setAndHold(set, holds, what, holdMs, timeoutMs = 10000) {
+  const start = Date.now();
+  let since = null;
+  set();
+  for (;;) {
+    let ok = false;
+    try { ok = Boolean(holds()); } catch { ok = false; }
+    if (ok) {
+      if (since === null) since = Date.now();
+      if (Date.now() - since >= holdMs) return;
+    } else {
+      since = null;
+      set();
+    }
+    if (Date.now() - start > timeoutMs) throw new Error(`ERPx did not keep the ${what}`);
+    await sleep(40);
+  }
+}
+
 // Adds one bike allowance line, waiting for ERPx after every step, then
 // checks the line was saved with this date.
 async function createBikeExpense(key, km) {
-  ERPx.addExpenseLine();
-  await waitUntil(() => isShown(editorField('combobox', 'expenseType')), 'open a new line');
-  ERPx.selectExpenseType('FIETSVG');
-  await waitUntil(() => {
-    const value = editorField('combobox', 'expenseType').getValue?.();
-    return value === undefined || value === 'FIETSVG';
-  }, 'take the category');
-  ERPx.setDate(fromKey(key));
-  await waitUntil(() => {
-    const f = editorField('datefield', 'expenseDate');
-    return !f.getValue || sameDay(f.getValue(), key);
-  }, 'take the date');
-  ERPx.setQuantity(km);
-  await waitUntil(() => {
-    const f = editorField('numberfield', 'quantity');
-    return !f.getValue || Number(f.getValue()) === Number(km);
-  }, 'take the km');
-  await sleep(150); // a moment for ERPx to work out the amount for these km
-  ERPx.commit();
   const grid = Ext.ComponentQuery.query('grid')[0];
+  ERPx.addExpenseLine();
+  await waitUntil(() => isShown(editorField('combobox', 'expenseType')) && grid.editingPlugin?.editing !== false, 'open a new line');
+  await setAndHold(
+    () => ERPx.selectExpenseType('FIETSVG'),
+    () => { const v = editorField('combobox', 'expenseType').getValue?.(); return v === undefined || v === 'FIETSVG'; },
+    'category', 400); // long enough for ERPx's defaults to arrive
+  await setAndHold(
+    () => ERPx.setDate(fromKey(key)),
+    () => { const f = editorField('datefield', 'expenseDate'); return !f.getValue || sameDay(f.getValue(), key); },
+    'date', 150);
+  await setAndHold(
+    () => ERPx.setQuantity(km),
+    () => { const f = editorField('numberfield', 'quantity'); return !f.getValue || Number(f.getValue()) === Number(km); },
+    'km', 150);
+  // The date once more: a late default must not slip through while the km were set.
+  await setAndHold(
+    () => ERPx.setDate(fromKey(key)),
+    () => { const f = editorField('datefield', 'expenseDate'); return !f.getValue || sameDay(f.getValue(), key); },
+    'date', 0);
+  ERPx.commit();
   await waitUntil(() => !grid.editingPlugin?.editing && hasBikeLine(key), 'save the line');
 }
 

@@ -232,3 +232,11 @@ test('the popup\'s font request does not tell Google the ERPx address', async ()
   assert.equal(await page.getAttribute('link[href*="family=Fredoka"]', 'referrerpolicy'), 'no-referrer');
   await context.close();
 });
+
+test('when ERPx fills in today\'s date after the category, the right date is put back', async () => {
+  const context = await newContext(ride(['2026-11-04', '2026-11-05', '2026-11-06']));
+  const page = await clickAndAllow(context, () => { window.fake.records.length = 0; window.fake.defaultsOnType = true; });
+  await doneWith(page, '3 added');
+  assert.deepEqual(await lines(page), ['4:FIETSVG:18', '5:FIETSVG:18', '6:FIETSVG:18']);
+  await context.close();
+});
