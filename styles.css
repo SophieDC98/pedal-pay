@@ -119,6 +119,7 @@ input[aria-invalid="true"] { border-color: var(--error); }
   border: 2px solid var(--brand);
 }
 .primary { background: var(--brand); color: var(--on-brand); }
+.primary:disabled, .secondary:disabled { opacity: .5; cursor: default; }
 .secondary { background: transparent; color: var(--brand); }
 form > .primary { margin-top: 14px; }
 

@@ -48,7 +48,10 @@ if (!window.opener) {
       return;
     }
     $('handoff-host').textContent = host;
+    // Allow waits a moment, so a quick double click elsewhere cannot land on it.
+    $('handoff-allow').disabled = true;
     show('handoff-ask');
+    setTimeout(() => { $('handoff-allow').disabled = false; }, 800);
     $('handoff-allow').addEventListener('click', () => {
       state = allowSite(loadState(storage), origin);
       saveState(storage, state);

@@ -34,11 +34,16 @@ const ERPx = {
   commit() {
     Ext.ComponentQuery.query('grid')[0].editingPlugin?.completeEdit();
   },
+  // Throws when the expense grid is not there; skips a line it cannot read.
   existingDates() {
+    const grid = Ext.ComponentQuery.query('grid')[0];
+    if (!grid) throw new Error('no expense grid');
     const dates = new Set();
-    Ext.ComponentQuery.query('grid')[0].getStore().each(record => {
-      const date = record.get('expenseDate');
-      if (date) dates.add(toKey(date));
+    grid.getStore().each(record => {
+      const raw = record.get('expenseDate');
+      if (!raw) return;
+      const date = raw instanceof Date ? raw : new Date(raw);
+      if (!Number.isNaN(date.getTime())) dates.add(toKey(date));
     });
     return dates;
   },
@@ -203,10 +208,13 @@ function startPanel(body, data) {
   let km = data?.kmPerRide || FALLBACK_KM;
   let month = defaultMonth(todayKey);
   let existing = new Set();
+  let canAdd = true;
   let note = data ? '' : 'No rides from Pedal Pay: all workdays are ticked. Untick the days you did not bike.';
   try {
     existing = ERPx.existingDates();
   } catch {
+    // Without knowing what is already there, adding could create duplicates.
+    canAdd = false;
     note = 'Pedal Pay could not read the lines already in ERPx. Open the expense claim first, then click the bookmark again.';
   }
   let ticks = initialTicks(rides, month.year, month.month0, existing);
@@ -267,7 +275,7 @@ function startPanel(body, data) {
         if (ticks.has(d.key)) b.classList.add('tick');
         b.setAttribute('aria-pressed', String(ticks.has(d.key)));
         b.addEventListener('click', () => {
-          if (busy) return;
+          if (busy || existing.has(d.key)) return;
           if (ticks.has(d.key)) ticks.delete(d.key); else ticks.add(d.key);
           b.classList.toggle('tick', ticks.has(d.key));
           b.setAttribute('aria-pressed', String(ticks.has(d.key)));
@@ -292,12 +300,21 @@ function startPanel(body, data) {
     const go = document.getElementById('pedal-pay-generate');
     if (!sum || !go) return;
     sum.textContent = `${n} ${n === 1 ? 'day' : 'days'} · ${Math.round(n * km * 100) / 100} km`;
-    go.textContent = n ? `Add ${n} ${n === 1 ? 'day' : 'days'} to ERPx` : 'No days ticked';
-    go.disabled = busy || n === 0;
+    if (!canAdd) go.textContent = 'Open the expense claim first';
+    else go.textContent = n ? `Add ${n} ${n === 1 ? 'day' : 'days'} to ERPx` : 'No days ticked';
+    go.disabled = busy || n === 0 || !canAdd;
+    const kmInput = document.getElementById('pedal-pay-km');
+    if (kmInput) kmInput.disabled = busy;
+  }
+
+  // Redraws the panel, then shows a message under the button.
+  function renderWith(message) {
+    render();
+    document.getElementById('pedal-pay-status').textContent = message;
   }
 
   async function generate() {
-    if (busy || ticks.size === 0) return;
+    if (busy || ticks.size === 0 || !canAdd) return;
     busy = true;
     summary();
     const status = document.getElementById('pedal-pay-status');
@@ -309,8 +326,8 @@ function startPanel(body, data) {
       try {
         await createBikeExpense(key, km);
       } catch (err) {
-        status.textContent = `Stopped at ${key}: ${err?.message || err}. ${added} ${added === 1 ? 'line' : 'lines'} added.`;
         busy = false;
+        renderWith(`Stopped at ${key}: ${err?.message || err}. ${added} ${added === 1 ? 'line' : 'lines'} added. Check the claim, then try again.`);
         return;
       }
       added++;
@@ -318,7 +335,7 @@ function startPanel(body, data) {
       ticks.delete(key);
       await sleep(600);
     }
-    status.textContent = `✅ ${added} ${added === 1 ? 'line' : 'lines'} added. Check and submit the claim in ERPx.`;
+    renderWith(`✅ ${added} ${added === 1 ? 'line' : 'lines'} added. Check and submit the claim in ERPx.`);
     setTimeout(closePanel, 4000);
   }
 

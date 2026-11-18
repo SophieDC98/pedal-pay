@@ -147,3 +147,59 @@ test('when the app is not set up, the window says so and the panel falls back', 
   assert.equal((await ticked(page)).length, 19);
   await context.close();
 });
+
+async function openAllowed(context, before) {
+  const page = await context.newPage();
+  await page.goto(`${erpBase}e2e/fake-erpx.html`);
+  if (before) await page.evaluate(before);
+  const popupEvent = context.waitForEvent('page', { timeout: 5000 });
+  await page.evaluate(code => { window.__pedalPayToday = '2026-11-18'; (0, eval)(code); }, bookmarkCode);
+  const popup = await popupEvent;
+  await popup.waitForSelector('#handoff-ask:not([hidden])');
+  await popup.click('#handoff-allow');
+  return page;
+}
+
+test('after an ERPx error, days already added are locked and never added twice', async () => {
+  const context = await newContext();
+  const page = await openAllowed(context, () => { window.fake.failOnDay = 17; });
+  await page.waitForSelector('#pedal-pay-panel [data-key].tick');
+  await page.click('#pedal-pay-generate');
+  await page.waitForSelector('#pedal-pay-status:has-text("Stopped")', { timeout: 15000 });
+  assert.equal(await page.isDisabled('#pedal-pay-panel [data-key="2026-11-16"]'), true);
+  assert.deepEqual(await ticked(page), ['2026-11-17']);
+  await page.evaluate(() => { window.fake.failOnDay = null; });
+  await page.click('#pedal-pay-generate');
+  await page.waitForSelector('#pedal-pay-status:has-text("1 line added")', { timeout: 15000 });
+  const days = await page.evaluate(() => window.fake.records.filter(r => r.data.expenseDate).map(r => new Date(r.data.expenseDate).getDate()).sort((a, b) => a - b));
+  assert.deepEqual(days, [3, 16, 17]);
+  await context.close();
+});
+
+test('existing dates stored as text still count, and without the expense grid nothing can be added', async () => {
+  const context = await newContext();
+  const page = await openAllowed(context, () => { window.fake.records.push({ data: { expenseDate: '2026-11-17T00:00:00' } }); });
+  await page.waitForSelector('#pedal-pay-panel [data-key="2026-11-17"].done');
+  assert.deepEqual(await ticked(page), ['2026-11-16']);
+  await context.close();
+
+  const context2 = await newContext();
+  const page2 = await openAllowed(context2, () => { window.fake.noGrid = true; });
+  await page2.waitForSelector('#pedal-pay-note:not([hidden])');
+  assert.match(await page2.textContent('#pedal-pay-note'), /could not read/);
+  assert.equal(await page2.isDisabled('#pedal-pay-generate'), true);
+  await context2.close();
+});
+
+test('Allow cannot be clicked the instant the question appears', async () => {
+  const context = await newContext();
+  const page = await context.newPage();
+  await page.goto(`${erpBase}e2e/fake-erpx.html`);
+  const popupEvent = context.waitForEvent('page', { timeout: 5000 });
+  await page.evaluate(code => { window.__pedalPayToday = '2026-11-18'; (0, eval)(code); }, bookmarkCode);
+  const popup = await popupEvent;
+  await popup.waitForSelector('#handoff-ask:not([hidden])');
+  assert.equal(await popup.isDisabled('#handoff-allow'), true);
+  await popup.waitForSelector('#handoff-allow:not([disabled])', { timeout: 3000 });
+  await context.close();
+});
