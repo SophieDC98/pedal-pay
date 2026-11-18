@@ -231,3 +231,11 @@ test('only bike allowance lines (or lines without a type) mark a day as already 
   assert.deepEqual(await ticked(page), ['2026-11-16']);
   await context.close();
 });
+
+test('the panel\'s font request does not tell Google the ERPx address', async () => {
+  const context = await newContext();
+  const page = await openAllowed(context);
+  await page.waitForSelector('#pedal-pay-panel [data-key].tick');
+  assert.equal(await page.getAttribute('link[href*="family=Fredoka"]', 'referrerpolicy'), 'no-referrer');
+  await context.close();
+});

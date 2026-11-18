@@ -190,7 +190,8 @@ function openPanel() {
   style.textContent = STYLE;
   document.head.append(style);
   if (!document.querySelector('link[href*="family=Fredoka"]')) {
-    document.head.append(el('link', { rel: 'stylesheet', href: 'https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600&display=swap' }));
+    // no-referrer: Google must not learn the ERPx address from this request.
+    document.head.append(el('link', { rel: 'stylesheet', referrerpolicy: 'no-referrer', href: 'https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600&display=swap' }));
   }
 
   const panel = el('div', { id: PANEL_ID, role: 'dialog', 'aria-label': 'Pedal Pay' });
