@@ -302,3 +302,35 @@ test('when ERPx does not remove the line, the panel stops and says so', async ()
   assert.equal(await page.evaluate(() => window.fake.records.length), 1);
   await context.close();
 });
+
+async function fillMany(before, rides) {
+  const state = JSON.stringify({ version: 1, kmPerRide: 18, ratePerKm: 0.36, reminderTime: '09:00', allowedSites: [],
+    answers: Object.fromEntries(rides.map(k => [k, true])) });
+  const context = await browser.newContext({ serviceWorkers: 'block' });
+  await context.addInitScript(s => {
+    if (location.hostname === 'localhost' && !localStorage.getItem('pedal-pay')) localStorage.setItem('pedal-pay', s);
+  }, state);
+  const page = await openAllowed(context, before);
+  await page.waitForSelector('#pedal-pay-panel [data-key].tick');
+  const started = Date.now();
+  await page.click('#pedal-pay-generate');
+  await page.waitForSelector('#pedal-pay-status:has-text("lines added")', { timeout: 60000 });
+  const seconds = (Date.now() - started) / 1000;
+  const days = await page.evaluate(() => window.fake.records.slice(1).map(r => `${new Date(r.data.expenseDate).getDate()}:${r.data.quantity}:${r.data.expenseType}`));
+  await context.close();
+  return { seconds, days };
+}
+
+const sixRides = ['2026-11-02', '2026-11-04', '2026-11-05', '2026-11-06', '2026-11-09', '2026-11-10'];
+const sixDays = ['2:18:FIETSVG', '4:18:FIETSVG', '5:18:FIETSVG', '6:18:FIETSVG', '9:18:FIETSVG', '10:18:FIETSVG'];
+
+test('days are added as fast as ERPx is ready, not after fixed waits', async () => {
+  const { seconds, days } = await fillMany(null, sixRides);
+  assert.deepEqual(days, sixDays);
+  assert.ok(seconds < 6, `6 days took ${seconds}s (fixed waits took about 11s)`);
+});
+
+test('a slow ERPx gets waited for, so every line is still complete', async () => {
+  const { days } = await fillMany(() => { window.fake.delay = 900; }, sixRides.slice(0, 2));
+  assert.deepEqual(days, sixDays.slice(0, 2));
+});

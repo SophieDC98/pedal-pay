@@ -38,4 +38,7 @@ nobody claims someone else's distance. The panel waits up to two minutes for
 an answer in the small window; closing it falls back at once.
 
 The panel and the ERPx automation come from a colleague's console script,
-reused with their consent and credited in the README.
+reused with their consent and credited in the README. Where that script
+paused a fixed 1.8 seconds per day, the panel waits until ERPx is ready for
+each step and checks the line was saved with its date, so it is as fast as
+ERPx allows and stops rather than leave a half-filled line.

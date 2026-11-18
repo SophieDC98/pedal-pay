@@ -18,7 +18,14 @@
     const grid = {
       getStore: () => store,
       getSelectionModel: () => ({ select(r) { selected = [r]; }, getSelection: () => selected }),
-      editingPlugin: { completeEdit() { if (editing) { records.push(editing); editing = null; } } },
+      editingPlugin: {
+        editing: false,
+        completeEdit() {
+          const line = editing;
+          if (!line) return;
+          setTimeout(() => { records.push(line); editing = null; grid.editingPlugin.editing = false; }, window.fake.delay);
+        },
+      },
     };
     // The confirmation ERPx asks after "Kosten verwijderen".
     const yesButton = { itemId: 'yes', text: 'Ja', isVisible: () => confirming, el: { dom: { click() {
@@ -27,28 +34,36 @@
       for (const r of selected) { const i = records.indexOf(r); if (i >= 0) records.splice(i, 1); }
       selected = [];
     } } } };
+    const open = () => editing && editing.open;
     const combo = {
       name: 'expenseType',
+      isVisible: () => open(),
+      getValue: () => editing?.data.expenseType,
       getStore: () => ({ findRecord: (field, value) => (value === 'FIETSVG' ? { value } : null) }),
       select(record) { editing.data.expenseType = record.value; },
     };
-    const datefield = { name: 'expenseDate', setValue(d) {
+    const datefield = { name: 'expenseDate', isVisible: () => open(), getValue: () => editing?.data.expenseDate, setValue(d) {
       if (window.fake.failOnDay === d.getDate()) throw new Error('ERPx hiccup');
       editing.data.expenseDate = d;
     } };
-    const numberfield = { name: 'quantity', setValue(n) { editing.data.quantity = n; }, triggerBlur() {} };
+    const numberfield = { name: 'quantity', isVisible: () => open(), getValue: () => editing?.data.quantity, setValue(n) { editing.data.quantity = n; }, triggerBlur() {} };
     const purpose = { u4Id: 'travelPurpose', value: '', setValue(v) { this.value = v; } };
     window.Ext = { ComponentQuery: { query(sel) {
       if (sel === 'grid' && window.fake.noGrid) return [];
       return ({ grid: [grid], combobox: [combo], datefield: [datefield], numberfield: [numberfield], textfield: [purpose], button: [yesButton] })[sel] || [];
     } } };
-    document.querySelector('[data-u4id="addExpenseLine"]').addEventListener('click', () => { editing = { data: {} }; });
+    document.querySelector('[data-u4id="addExpenseLine"]').addEventListener('click', () => {
+      const line = { data: {}, open: false };
+      editing = line;
+      grid.editingPlugin.editing = true;
+      setTimeout(() => { line.open = true; }, window.fake.delay);
+    });
     document.querySelector('[data-u4id="deleteExpenseLine"]').addEventListener('click', () => {
       if (selected.length && !window.fake.noConfirm) confirming = true;
     });
     // Deletes the whole claim. The panel must never press it.
     document.querySelector('[data-u4id="delete"]').addEventListener('click', () => { records.length = 0; window.fake.claimDeleted = true; });
-    window.fake = { records, purpose, failOnDay: null, noGrid: false, noConfirm: false, claimDeleted: false };
+    window.fake = { records, purpose, failOnDay: null, noGrid: false, noConfirm: false, claimDeleted: false, delay: 80 };
   </script>
 </body>
 </html>
