@@ -25,6 +25,12 @@ same day does not count; a line whose type cannot be read does, so an
 unexpected ERPx field never causes duplicates. If the lines in ERPx cannot be
 read at all, nothing can be added.
 
+A day already in ERPx can be unticked to remove its bike allowance line: the
+panel selects only that row, presses "Kosten verwijderen" and confirms, then
+checks the line is gone and stops if it is not. Removals run before
+additions. The panel never uses ERPx's "Verwijderen" button, which deletes
+the whole expense claim.
+
 Without app data (the user said no, the app is not set up, or the small
 window could not open), the panel ticks every workday, as the original
 script does, but leaves the km per ride empty until the user fills it in, so

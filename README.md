@@ -39,8 +39,9 @@ the calendar to change it.
    with that ERPx site. Click **Allow**; it remembers this in your browser only.
 4. A panel shows the month with your rides ticked: last month before the
    15th, this month from the 15th. Days already in ERPx have a check mark and
-   are skipped. Fix anything, then click **Add … days to ERPx**.
-5. The panel adds one bike allowance line per day and closes. Check and
+   are skipped; click one to remove its bike allowance line instead. Fix
+   anything, then click the button (for example **Add 2 · remove 1**).
+5. The panel removes and adds the bike allowance lines and closes. Check and
    submit the claim in ERPx yourself.
 
 If you click **Don't allow**, or Pedal Pay isn't set up in this browser, the

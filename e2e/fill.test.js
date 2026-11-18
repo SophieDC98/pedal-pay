@@ -81,7 +81,7 @@ test('an unknown site is asked about; after Allow the rides are filled into ERPx
 
   await page.waitForSelector('#pedal-pay-panel [data-key].tick');
   assert.deepEqual(await ticked(page), ['2026-11-16', '2026-11-17']);
-  assert.equal(await page.isDisabled('#pedal-pay-panel [data-key="2026-11-03"]'), true);
+  assert.match(await page.getAttribute('#pedal-pay-panel [data-key="2026-11-03"]', 'class'), /done/);
   assert.match(await page.getAttribute('#pedal-pay-panel [data-key="2026-11-03"]', 'aria-label'), /already in ERPx/);
   assert.equal(await page.textContent('#pedal-pay-panel [data-key="2026-11-03"]'), '3');
   assert.equal(await page.inputValue('#pedal-pay-km'), '18');
@@ -166,7 +166,7 @@ test('after an ERPx error, days already added are locked and never added twice',
   await page.waitForSelector('#pedal-pay-panel [data-key].tick');
   await page.click('#pedal-pay-generate');
   await page.waitForSelector('#pedal-pay-status:has-text("Stopped")', { timeout: 15000 });
-  assert.equal(await page.isDisabled('#pedal-pay-panel [data-key="2026-11-16"]'), true);
+  assert.match(await page.getAttribute('#pedal-pay-panel [data-key="2026-11-16"]', 'class'), /done/);
   assert.deepEqual(await ticked(page), ['2026-11-17']);
   await page.evaluate(() => { window.fake.failOnDay = null; });
   await page.click('#pedal-pay-generate');
@@ -226,8 +226,8 @@ test('only bike allowance lines (or lines without a type) mark a day as already 
     window.fake.records.push({ data: { expenseDate: new Date(2026, 10, 12), expenseType: 'Fietsvergoeding (woon-werkverkeer)' } });
   });
   await page.waitForSelector('#pedal-pay-panel [data-key="2026-11-17"].done');
-  assert.equal(await page.isDisabled('#pedal-pay-panel [data-key="2026-11-12"]'), true);
-  assert.equal(await page.isDisabled('#pedal-pay-panel [data-key="2026-11-16"]'), false);
+  assert.match(await page.getAttribute('#pedal-pay-panel [data-key="2026-11-12"]', 'class'), /done/);
+  assert.doesNotMatch(await page.getAttribute('#pedal-pay-panel [data-key="2026-11-16"]', 'class'), /done/);
   assert.deepEqual(await ticked(page), ['2026-11-16']);
   await context.close();
 });
@@ -257,5 +257,48 @@ test('the panel fits in a short window and its button stays visible', async () =
   }));
   assert.ok(panelBottom <= 560, `panel ends at ${panelBottom}px`);
   assert.ok(buttonBottom <= 560, `button ends at ${buttonBottom}px`);
+  await context.close();
+});
+
+const linesIn = page => page.evaluate(() => window.fake.records.map(r => ({
+  day: new Date(r.data.expenseDate).getDate(), type: r.data.expenseType ?? null })).sort((a, b) => a.day - b.day));
+
+test('unticking a day already in ERPx removes only its bike line, never the claim', async () => {
+  const context = await newContext();
+  const page = await openAllowed(context, () => {
+    window.fake.records.push({ data: { expenseDate: new Date(2026, 10, 3), expenseType: 'TREIN' } });
+  });
+  await page.waitForSelector('#pedal-pay-panel [data-key="2026-11-03"].done');
+  await page.click('#pedal-pay-panel [data-key="2026-11-03"]');
+  assert.match(await page.getAttribute('#pedal-pay-panel [data-key="2026-11-03"]', 'class'), /remove/);
+  assert.match(await page.textContent('#pedal-pay-generate'), /Add 2 · remove 1/);
+  await page.click('#pedal-pay-generate');
+  await page.waitForSelector('#pedal-pay-status:has-text("1 removed")', { timeout: 20000 });
+  assert.deepEqual(await linesIn(page), [
+    { day: 3, type: 'TREIN' }, { day: 16, type: 'FIETSVG' }, { day: 17, type: 'FIETSVG' }]);
+  assert.equal(await page.evaluate(() => window.fake.claimDeleted), false);
+  await context.close();
+});
+
+test('clicking a day marked for removal again keeps its line', async () => {
+  const context = await newContext();
+  const page = await openAllowed(context);
+  await page.waitForSelector('#pedal-pay-panel [data-key="2026-11-03"].done');
+  await page.click('#pedal-pay-panel [data-key="2026-11-03"]');
+  await page.click('#pedal-pay-panel [data-key="2026-11-03"]');
+  assert.doesNotMatch(await page.getAttribute('#pedal-pay-panel [data-key="2026-11-03"]', 'class'), /remove/);
+  assert.match(await page.textContent('#pedal-pay-generate'), /^Add 2 days/);
+  await context.close();
+});
+
+test('when ERPx does not remove the line, the panel stops and says so', async () => {
+  const context = await newContext();
+  const page = await openAllowed(context, () => { window.fake.noConfirm = true; });
+  await page.waitForSelector('#pedal-pay-panel [data-key="2026-11-03"].done');
+  await page.click('#pedal-pay-panel [data-key="2026-11-03"]');
+  await page.click('#pedal-pay-generate');
+  await page.waitForSelector('#pedal-pay-status:has-text("Stopped")', { timeout: 20000 });
+  assert.match(await page.textContent('#pedal-pay-status'), /2026-11-03/);
+  assert.equal(await page.evaluate(() => window.fake.records.length), 1);
   await context.close();
 });

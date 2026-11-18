@@ -59,6 +59,36 @@ function isBikeLine(type) {
   return type === 'FIETSVG' || /fiets/i.test(String(type));
 }
 
+// Removes the bike allowance line of one day: select that row, press
+// "Kosten verwijderen" (u4Id deleteExpenseLine) and confirm. Never use the
+// button with u4Id "delete": that one deletes the whole expense claim.
+async function removeBikeLine(key) {
+  const grid = Ext.ComponentQuery.query('grid')[0];
+  const store = grid.getStore();
+  let target = null;
+  store.each(record => {
+    const raw = record.get('expenseDate');
+    const date = raw instanceof Date ? raw : new Date(raw);
+    if (!target && !Number.isNaN(date.getTime()) && toKey(date) === key && isBikeLine(record.get('expenseType'))) target = record;
+  });
+  if (!target) return; // already gone
+  const selection = grid.getSelectionModel();
+  selection.select(target, false);
+  await sleep(300);
+  const selected = selection.getSelection();
+  if (selected.length !== 1 || selected[0] !== target) throw new Error('could not select that line');
+  document.querySelector('[data-u4id="deleteExpenseLine"]').click();
+  await sleep(400);
+  const confirm = Ext.ComponentQuery.query('button').find(b => (b.itemId === 'yes' || b.itemId === 'ok') && b.isVisible?.());
+  if (confirm) {
+    confirm.el?.dom?.click();
+    await sleep(400);
+  }
+  let stillThere = false;
+  store.each(record => { if (record === target) stillThere = true; });
+  if (stillThere) throw new Error('ERPx did not remove the line');
+}
+
 async function createBikeExpense(key, km) {
   ERPx.addExpenseLine();
   await sleep(300);
@@ -146,7 +176,9 @@ const STYLE = `
 #${PANEL_ID} .pp-day.off{background:transparent;color:var(--pp-muted)}
 #${PANEL_ID} .pp-day.holiday{background:var(--pp-sun-soft);color:var(--pp-sun-ink)}
 #${PANEL_ID} .pp-day.tick{background:var(--pp-brand);color:var(--pp-on-brand);font-weight:600}
-#${PANEL_ID} .pp-day.done{position:relative;background:var(--pp-done);color:var(--pp-muted);cursor:default}
+#${PANEL_ID} .pp-day.done{position:relative;background:var(--pp-done);color:var(--pp-muted)}
+#${PANEL_ID} .pp-day.done.remove{background:transparent;box-shadow:inset 0 0 0 2px var(--pp-brand);color:var(--pp-brand);text-decoration:line-through}
+#${PANEL_ID} .pp-day.done.remove::after{content:'✕'}
 #${PANEL_ID} .pp-day.done::after{content:'✓';position:absolute;top:-3px;right:-3px;width:16px;height:16px;border-radius:50%;background:var(--pp-brand);color:var(--pp-on-brand);font-size:10px;line-height:16px;text-align:center;font-weight:600}
 #${PANEL_ID} .pp-day:focus-visible,#${PANEL_ID} .pp-go:focus-visible{outline:2px solid var(--pp-sun);outline-offset:2px}
 #${PANEL_ID} .pp-sum{margin:0;color:var(--pp-muted);text-align:center;font-size:13px}
@@ -226,6 +258,7 @@ function startPanel(body, data) {
     note = 'Pedal Pay could not read the lines already in ERPx. Open the expense claim first, then click the bookmark again.';
   }
   let ticks = initialTicks(rides, month.year, month.month0, existing);
+  const removes = new Set(); // days already in ERPx whose bike line should go
   let busy = false;
 
   const setPurpose = () => { try { ERPx.setTravelPurpose(travelPurpose(month.year, month.month0)); } catch { /* optional field */ } };
@@ -246,6 +279,7 @@ function startPanel(body, data) {
       const d = new Date(month.year, month.month0 + delta, 1);
       month = { year: d.getFullYear(), month0: d.getMonth() };
       ticks = initialTicks(rides, month.year, month.month0, existing);
+      removes.clear();
       setPurpose();
       render();
     };
@@ -272,11 +306,23 @@ function startPanel(body, data) {
     for (const d of days) {
       const b = el('button', { type: 'button', class: 'pp-day', 'data-key': d.key });
       if (existing.has(d.key)) {
+        // Already in ERPx: a click marks its bike line for removal, a second click keeps it.
         b.classList.add('done');
-        b.disabled = true;
         b.textContent = String(d.day);
-        b.title = `${d.day}: already in ERPx`;
-        b.setAttribute('aria-label', `${d.day}, already in ERPx`);
+        const mark = () => {
+          const removing = removes.has(d.key);
+          b.classList.toggle('remove', removing);
+          b.setAttribute('aria-pressed', String(removing));
+          b.title = removing ? `${d.day}: will be removed from ERPx` : `${d.day}: already in ERPx, click to remove`;
+          b.setAttribute('aria-label', `${d.day}, already in ERPx${removing ? ', will be removed' : ''}`);
+        };
+        mark();
+        b.addEventListener('click', () => {
+          if (busy || !canAdd) return;
+          if (removes.has(d.key)) removes.delete(d.key); else removes.add(d.key);
+          mark();
+          summary();
+        });
       } else {
         b.textContent = String(d.day);
         if (d.holiday) b.classList.add('holiday');
@@ -308,14 +354,18 @@ function startPanel(body, data) {
 
   function summary() {
     const n = ticks.size;
+    const r = removes.size;
+    const days = k => `${k} ${k === 1 ? 'day' : 'days'}`;
     const sum = document.getElementById('pedal-pay-sum');
     const go = document.getElementById('pedal-pay-generate');
     if (!sum || !go) return;
-    sum.textContent = `${n} ${n === 1 ? 'day' : 'days'}` + (km ? ` · ${Math.round(n * km * 100) / 100} km` : '');
+    sum.textContent = days(n) + (km ? ` · ${Math.round(n * km * 100) / 100} km` : '') + (r ? ` · ${r} to remove` : '');
     if (!canAdd) go.textContent = 'Open the expense claim first';
-    else if (!km) go.textContent = 'Enter your km per ride';
-    else go.textContent = n ? `Add ${n} ${n === 1 ? 'day' : 'days'} to ERPx` : 'No days ticked';
-    go.disabled = busy || n === 0 || !canAdd || !km;
+    else if (n && !km) go.textContent = 'Enter your km per ride';
+    else if (n && r) go.textContent = `Add ${n} · remove ${r}`;
+    else if (r) go.textContent = `Remove ${days(r)} from ERPx`;
+    else go.textContent = n ? `Add ${days(n)} to ERPx` : 'No days ticked';
+    go.disabled = busy || (n === 0 && r === 0) || !canAdd || (n > 0 && !km);
     const kmInput = document.getElementById('pedal-pay-km');
     if (kmInput) kmInput.disabled = busy;
   }
@@ -327,12 +377,29 @@ function startPanel(body, data) {
   }
 
   async function generate() {
-    if (busy || ticks.size === 0 || !canAdd || !km) return;
+    if (busy || (ticks.size === 0 && removes.size === 0) || !canAdd || (ticks.size > 0 && !km)) return;
     busy = true;
     summary();
     const status = document.getElementById('pedal-pay-status');
     const keys = [...ticks].sort();
     setPurpose();
+    const lines = k => `${k} ${k === 1 ? 'line' : 'lines'}`;
+    let removed = 0;
+    const toRemove = [...removes].sort();
+    for (const key of toRemove) {
+      status.textContent = `Removing ${removed + 1} of ${toRemove.length}…`;
+      try {
+        await removeBikeLine(key);
+      } catch (err) {
+        busy = false;
+        renderWith(`Stopped at ${key}: ${err?.message || err}. ${lines(removed)} removed. Check the claim, then try again.`);
+        return;
+      }
+      removed++;
+      removes.delete(key);
+      existing.delete(key);
+      await sleep(600);
+    }
     let added = 0;
     for (const key of keys) {
       status.textContent = `Adding ${added + 1} of ${keys.length}…`;
@@ -340,7 +407,7 @@ function startPanel(body, data) {
         await createBikeExpense(key, km);
       } catch (err) {
         busy = false;
-        renderWith(`Stopped at ${key}: ${err?.message || err}. ${added} ${added === 1 ? 'line' : 'lines'} added. Check the claim, then try again.`);
+        renderWith(`Stopped at ${key}: ${err?.message || err}. ${lines(added)} added${removed ? `, ${removed} removed` : ''}. Check the claim, then try again.`);
         return;
       }
       added++;
@@ -348,7 +415,8 @@ function startPanel(body, data) {
       ticks.delete(key);
       await sleep(600);
     }
-    renderWith(`✅ ${added} ${added === 1 ? 'line' : 'lines'} added. Check and submit the claim in ERPx.`);
+    const done = [added ? `${lines(added)} added` : '', removed ? `${removed} removed` : ''].filter(Boolean).join(', ');
+    renderWith(`✅ ${done}. Check and submit the claim in ERPx.`);
     setTimeout(closePanel, 4000);
   }
 
