@@ -7,5 +7,5 @@ restated. The order lives only in the list below. Inserting an entry is a new
 file and one new line here, and nothing is ever renumbered.
 
 1. [App](app.md) done.
-2. [Fill bookmark](fill-bookmark.md) not started.
+2. [Fill bookmark](fill-bookmark.md) done.
 3. [Install page](install-page.md) not started.

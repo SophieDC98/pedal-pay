@@ -3,6 +3,7 @@
 import { toKey, fromKey, monthDays } from './dates.js';
 import { loadState, saveState, setAnswer, clearAnswer, isSetUp, parseDecimal } from './store.js';
 import { totals, streak, promptDue, needsPrompt, formatEuros } from './stats.js';
+import { bookmarkUrl } from './bookmark.js';
 
 const $ = id => document.getElementById(id);
 const storage = (() => { try { return window.localStorage; } catch { return null; } })();
@@ -197,6 +198,24 @@ async function closeNotification() {
   } catch { /* nothing to close */ }
 }
 
+// The fill bookmark is built from the app's own files, for this app's address.
+async function buildFillBookmark() {
+  const link = $('fill-bookmark-link');
+  if (link.href.startsWith('javascript:')) return;
+  try {
+    const files = ['./src/dates.js', './src/fill-logic.js', './fill/panel.js'];
+    const sources = await Promise.all(files.map(f => fetch(f).then(r => {
+      if (!r.ok) throw new Error(f);
+      return r.text();
+    })));
+    link.href = bookmarkUrl(sources, new URL('./', location.href).href);
+  } catch {
+    link.removeAttribute('href');
+    link.textContent = 'The fill bookmark could not be built offline. Try again when online.';
+  }
+}
+$('fill-bookmark-link').addEventListener('click', e => e.preventDefault());
+
 // Asked once, from the Start button, so the browser accepts the request.
 function askNotificationPermission() {
   try {
@@ -245,6 +264,7 @@ $('open-settings').addEventListener('click', () => {
     $(`settings-${f}-error`).hidden = true;
   }
   show('settings');
+  buildFillBookmark();
 });
 $('settings-cancel').addEventListener('click', () => { showMain(); refresh(); });
 $('settings-form').addEventListener('submit', e => {

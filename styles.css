@@ -161,6 +161,17 @@ form > .primary { margin-top: 14px; }
 .calendar .day.today { box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--sun); }
 .calendar .day:disabled { opacity: .35; cursor: default; }
 
+.bookmark-link {
+  align-self: flex-start;
+  padding: 8px 16px;
+  border-radius: 999px;
+  border: 2px dashed var(--brand);
+  color: var(--brand);
+  font-weight: 600;
+  text-decoration: none;
+  cursor: grab;
+}
+
 /* Morning prompt: a strip over the main screen, under the title bar */
 .overlay { position: fixed; inset: 0; z-index: 5; }
 .scrim { position: absolute; inset: 0; background: var(--scrim); }

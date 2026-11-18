@@ -82,7 +82,8 @@ test('an unknown site is asked about; after Allow the rides are filled into ERPx
   await page.waitForSelector('#pedal-pay-panel [data-key].tick');
   assert.deepEqual(await ticked(page), ['2026-11-16', '2026-11-17']);
   assert.equal(await page.isDisabled('#pedal-pay-panel [data-key="2026-11-03"]'), true);
-  assert.match(await page.textContent('#pedal-pay-panel [data-key="2026-11-03"]'), /✓/);
+  assert.match(await page.getAttribute('#pedal-pay-panel [data-key="2026-11-03"]', 'aria-label'), /already in ERPx/);
+  assert.equal(await page.textContent('#pedal-pay-panel [data-key="2026-11-03"]'), '3');
   assert.equal(await page.inputValue('#pedal-pay-km'), '18');
   assert.equal(await page.evaluate(() => window.fake.purpose.value), 'Fietsvergoeding november 2026');
 

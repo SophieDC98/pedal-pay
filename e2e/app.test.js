@@ -293,3 +293,16 @@ test('the reminder time is saved in Settings', async () => {
   assert.equal(saved, '07:45');
   await context.close();
 });
+
+test('Settings offers the fill bookmark, built for this app address', async () => {
+  const { page, context } = await openApp('2026-11-17', { 'pedal-pay': setUpState({ '2026-11-17': true }) });
+  await visible(page, '#main');
+  await page.click('#open-settings');
+  await page.waitForFunction(() => document.getElementById('fill-bookmark-link')?.href.startsWith('javascript:'));
+  const href = await page.getAttribute('#fill-bookmark-link', 'href');
+  const code = decodeURIComponent(href.slice('javascript:'.length));
+  assert.match(code, new RegExp(`const PEDAL_PAY_URL = "${base.replace(/[.]/g, '\\.')}";`));
+  assert.match(code, /function defaultMonth/);
+  assert.doesNotMatch(code, /^\s*(import|export)\s/m);
+  await context.close();
+});

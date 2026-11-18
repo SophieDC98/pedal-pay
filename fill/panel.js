@@ -134,7 +134,8 @@ const STYLE = `
 #${PANEL_ID} .pp-day.off{background:transparent;color:var(--pp-muted)}
 #${PANEL_ID} .pp-day.holiday{background:var(--pp-sun-soft);color:var(--pp-sun-ink)}
 #${PANEL_ID} .pp-day.tick{background:var(--pp-brand);color:var(--pp-on-brand);font-weight:600}
-#${PANEL_ID} .pp-day.done{background:var(--pp-done);color:var(--pp-muted);cursor:default}
+#${PANEL_ID} .pp-day.done{position:relative;background:var(--pp-done);color:var(--pp-muted);cursor:default}
+#${PANEL_ID} .pp-day.done::after{content:'✓';position:absolute;top:-3px;right:-3px;width:16px;height:16px;border-radius:50%;background:var(--pp-brand);color:var(--pp-on-brand);font-size:10px;line-height:16px;text-align:center;font-weight:600}
 #${PANEL_ID} .pp-day:focus-visible,#${PANEL_ID} .pp-go:focus-visible{outline:2px solid var(--pp-sun);outline-offset:2px}
 #${PANEL_ID} .pp-sum{color:var(--pp-muted);text-align:center;font-size:13px}
 #${PANEL_ID} .pp-go{width:100%;padding:11px;border-radius:999px;background:var(--pp-brand);color:var(--pp-on-brand);font-weight:600;font-size:15px}
@@ -256,7 +257,7 @@ function startPanel(body, data) {
       if (existing.has(d.key)) {
         b.classList.add('done');
         b.disabled = true;
-        b.textContent = '✓';
+        b.textContent = String(d.day);
         b.title = `${d.day}: already in ERPx`;
         b.setAttribute('aria-label', `${d.day}, already in ERPx`);
       } else {
