@@ -8,8 +8,12 @@ const STYLE_ID = 'pedal-pay-style';
 const MONTH_NAME = new Intl.DateTimeFormat('en-GB', { month: 'long' });
 const LOGO = '<svg viewBox="0 0 64 64" width="24" height="24" aria-hidden="true"><rect width="64" height="64" rx="16" fill="#D4471F"/><g transform="translate(0 -7)"><g fill="none" stroke="#FFC93C" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="40" r="9"/><path d="M18 40 27 27h13l5 13M27 27l4 13H18M31 40l9-13"/></g><circle cx="46" cy="40" r="10" fill="#FFC93C"/></g></svg>';
 
-// The logo's bike, riding to the right; it takes the text colour.
-const RIDER = '<svg viewBox="8 18 50 34" width="38" height="26" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="40" r="9"/><path d="M18 40 27 27h13l5 13M27 27l4 13H18M31 40l9-13M24 22h6M40 27l-2-6h5"/></g><circle cx="46" cy="40" r="10" fill="#FFC93C" stroke="currentColor" stroke-width="3"/></svg>';
+// The logo's bike, riding to the right, with wheels that turn; it takes the
+// text colour.
+const RIDER = '<svg viewBox="8 18 50 34" width="40" height="27" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round">'
+  + '<g class="pp-wheel"><circle cx="18" cy="40" r="9"/><path d="M18 31v18M9 40h18" stroke-width="2"/></g>'
+  + '<path d="M18 40 27 27h13l5 13M27 27l4 13H18M31 40l9-13M24 22h6M40 27l-2-6h5"/></g>'
+  + '<g class="pp-wheel"><circle cx="46" cy="40" r="10" fill="#FFC93C" stroke="currentColor" stroke-width="3"/><path d="M46 32v16M38 40h16" stroke="currentColor" stroke-width="2"/></g></svg>';
 
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -229,7 +233,7 @@ const WHY_NOT = {
 /////////////////////////////////////////////////////////////
 
 const STYLE = `
-#${PANEL_ID}{--pp-bg:#FFF8F3;--pp-ink:#2B1A14;--pp-muted:#7A6359;--pp-line:#EFDCD2;--pp-brand:#D4471F;--pp-on-brand:#FFFFFF;--pp-track:#F3E7E0;
+#${PANEL_ID}{--pp-bg:#FFF8F3;--pp-ink:#2B1A14;--pp-muted:#7A6359;--pp-line:#EFDCD2;--pp-brand:#D4471F;--pp-on-brand:#FFFFFF;--pp-track:#EFE3DB;
   position:fixed;top:min(80px,6vh);right:20px;z-index:999999;width:340px;max-width:calc(100vw - 40px);border-radius:16px;overflow:hidden;
   background:var(--pp-bg);color:var(--pp-ink);box-shadow:0 10px 30px rgba(0,0,0,.25);font:14px/1.4 "Fredoka","Segoe UI",system-ui,sans-serif;font-variant-numeric:tabular-nums}
 @media (prefers-color-scheme: dark){#${PANEL_ID}{--pp-bg:#151B2E;--pp-ink:#EDF0F8;--pp-muted:#A3ABC6;--pp-line:#2D375A;--pp-brand:#FF8A4C;--pp-on-brand:#151B2E;--pp-track:#262F4D}}
@@ -241,15 +245,24 @@ const STYLE = `
 #${PANEL_ID} .pp-x{font-size:18px;line-height:1;padding:2px 6px}
 #${PANEL_ID} .pp-body{padding:16px;display:flex;flex-direction:column;gap:12px}
 #${PANEL_ID} .pp-message{margin:0;font-weight:600;font-size:15px;text-wrap:balance}
-#${PANEL_ID} .pp-track{position:relative;height:30px;border-radius:999px;background:var(--pp-track);overflow:visible}
-#${PANEL_ID} .pp-fill{position:absolute;inset:0 auto 0 0;width:0;border-radius:999px;background:var(--pp-brand);transition:width .3s ease}
-#${PANEL_ID} .pp-bike{position:absolute;top:50%;left:0;transform:translate(-55%,-62%);line-height:0;color:var(--pp-ink);transition:left .3s ease}
+#${PANEL_ID} .pp-road{position:relative;height:42px}
+#${PANEL_ID} .pp-asphalt{position:absolute;left:0;right:24px;bottom:4px;height:14px;border-radius:7px;background:var(--pp-track);overflow:hidden}
+#${PANEL_ID} .pp-asphalt::after{content:"";position:absolute;left:6px;right:6px;top:6px;border-top:2px dashed var(--pp-line)}
+#${PANEL_ID} .pp-fill{position:absolute;inset:0 auto 0 0;width:0;border-radius:7px;background:var(--pp-brand);z-index:1;transition:width .3s ease}
+#${PANEL_ID} .pp-flag{position:absolute;right:0;bottom:2px;font-size:20px;line-height:1}
+#${PANEL_ID} .pp-bike{position:absolute;bottom:9px;left:0;transform:translateX(-50%);line-height:0;color:var(--pp-ink);z-index:2;transition:left .3s ease}
+#${PANEL_ID} .pp-wheel{transform-box:fill-box;transform-origin:center;animation:pp-spin .6s linear infinite}
+#${PANEL_ID} .pp-road.pp-still .pp-wheel{animation:none}
+@keyframes pp-spin{to{transform:rotate(360deg)}}
+#${PANEL_ID} .pp-km{display:flex;align-items:baseline;justify-content:center;gap:2px;margin:0;white-space:pre}
+#${PANEL_ID} .pp-km b{font-size:34px;line-height:1;font-weight:600;color:var(--pp-brand)}
+#${PANEL_ID} .pp-km small{font-size:14px;color:var(--pp-muted)}
 #${PANEL_ID} .pp-row{display:flex;align-items:center;justify-content:space-between;gap:8px;color:var(--pp-muted);font-size:13px}
 #${PANEL_ID} .pp-stop{padding:6px 14px;border-radius:999px;border:2px solid var(--pp-brand);color:var(--pp-brand);font-weight:600}
 #${PANEL_ID} .pp-stop:disabled{opacity:.5;cursor:default}
 #${PANEL_ID} .pp-status{margin:0;font-weight:600;color:var(--pp-brand)}
 #${PANEL_ID} button:focus-visible{outline:2px solid #FFC93C;outline-offset:2px}
-@media (prefers-reduced-motion: reduce){#${PANEL_ID} .pp-fill,#${PANEL_ID} .pp-bike{transition:none}}
+@media (prefers-reduced-motion: reduce){#${PANEL_ID} .pp-fill,#${PANEL_ID} .pp-bike{transition:none}#${PANEL_ID} .pp-wheel{animation:none}}
 `;
 
 function closePanel() {
@@ -347,17 +360,27 @@ async function run(body, data) {
   if (plan.add.length) parts.push(`Adding ${plural(plan.add.length, 'day')} of ${monthName} to ERPx`);
   if (plan.remove.length) parts.push(plan.add.length ? `removing ${plan.remove.length}` : `Removing ${plural(plan.remove.length, 'day')} of ${monthName} from ERPx`);
   say(body, parts.join(' · '));
-  const track = el('div', { class: 'pp-track', id: 'pedal-pay-progress', role: 'progressbar', 'aria-valuemin': '0', 'aria-valuemax': String(total), 'aria-valuenow': '0' });
+  // A road with a finish flag; the bike rides along it with turning wheels,
+  // and the km being claimed count up underneath.
+  const road = el('div', { class: 'pp-road', id: 'pedal-pay-progress', role: 'progressbar', 'aria-valuemin': '0', 'aria-valuemax': String(total), 'aria-valuenow': '0' });
+  const asphalt = el('div', { class: 'pp-asphalt' });
   const fill = el('div', { class: 'pp-fill' });
+  asphalt.append(fill);
+  const flag = el('div', { class: 'pp-flag', 'aria-hidden': 'true' }, '🏁');
   const bike = el('div', { class: 'pp-bike', 'aria-hidden': 'true' });
   bike.innerHTML = RIDER;
-  track.append(fill, bike);
+  road.append(asphalt, flag, bike);
+  const totalKm = Math.round(plan.add.length * data.kmPerRide * 100) / 100;
+  const kmLine = el('p', { class: 'pp-km', id: 'pedal-pay-km' });
+  const kmDone = el('b', {}, '0');
+  kmLine.append(kmDone, el('small', {}, ` of ${totalKm.toLocaleString('en-GB')} km`));
+  kmLine.hidden = plan.add.length === 0;
   const row = el('div', { class: 'pp-row' });
   const count = el('span', {}, `0 of ${total}`);
   const stop = el('button', { class: 'pp-stop', id: 'pedal-pay-stop', type: 'button' }, 'Stop');
   row.append(count, stop);
   const status = el('p', { class: 'pp-status', id: 'pedal-pay-status', role: 'status' });
-  body.append(track, row, status);
+  body.append(road, kmLine, row, status);
 
   let stopping = false;
   stop.addEventListener('click', () => { stopping = true; stop.disabled = true; stop.textContent = 'Stopping…'; });
@@ -366,14 +389,15 @@ async function run(body, data) {
     done++;
     const pct = (done / total) * 100;
     fill.style.width = `${pct}%`;
-    bike.style.left = `${pct}%`;
-    track.setAttribute('aria-valuenow', String(done));
+    bike.style.left = `calc((100% - 24px) * ${done / total})`;
+    road.setAttribute('aria-valuenow', String(done));
+    kmDone.textContent = (Math.round(added * data.kmPerRide * 100) / 100).toLocaleString('en-GB');
     count.textContent = `${done} of ${total}`;
   };
   let added = 0;
   let removed = 0;
   const tally = () => [added ? `${added} added` : '', removed ? `${removed} removed` : ''].filter(Boolean).join(', ') || 'nothing changed';
-  const finish = text => { stop.remove(); status.textContent = text; };
+  const finish = text => { stop.remove(); road.classList.add('pp-still'); status.textContent = text; };
 
   try { ERPx.setTravelPurpose(travelPurpose(year, month0)); } catch { /* optional field */ }
   const work = [...plan.remove.map(key => ['remove', key]), ...plan.add.map(key => ['add', key])];

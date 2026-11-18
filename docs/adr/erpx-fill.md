@@ -27,8 +27,9 @@ train or parking line on the same day is left alone. If the lines in ERPx
 cannot be read at all, nothing is changed.
 
 A small popup shows what it does, for example "Adding 12 days of November to
-ERPx · removing 1", with a bike riding along a progress bar and a Stop
-button that halts after the current day. It closes itself when done. When
+ERPx · removing 1". The logo bike rides along a little road towards a finish
+flag with its wheels turning, the km being claimed count up underneath, and a
+Stop button halts after the current day. It closes itself when done. When
 the app shares no rides (the user said no, the app is not set up in that
 browser, or the small window could not open), the popup explains what to do
 and changes nothing. The bookmark waits up to two minutes for an answer in

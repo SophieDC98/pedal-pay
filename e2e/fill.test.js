@@ -101,8 +101,10 @@ test('after Allow, the month\'s rides are added with a progress bar, and the pop
 
   await page.waitForSelector('#pedal-pay-progress');
   assert.match(await message(page), /Adding 2 days of November to ERPx/);
-  assert.equal(await page.locator('#pedal-pay-panel .pp-bike').count(), 1);
+  assert.equal(await page.locator('#pedal-pay-panel .pp-road .pp-bike .pp-wheel').count(), 2);
+  assert.equal(await page.locator('#pedal-pay-panel .pp-flag').count(), 1);
   await doneWith(page, '2 added');
+  assert.equal((await page.textContent('#pedal-pay-km')).replace(/\s+/g, ' ').trim(), '36 of 36 km');
   assert.deepEqual(await lines(page), ['3:FIETSVG:18', '16:FIETSVG:18', '17:FIETSVG:18']);
   assert.equal(await page.evaluate(() => window.fake.purpose.value), 'Fietsvergoeding november 2026');
   await page.waitForSelector('#pedal-pay-panel', { state: 'detached', timeout: 8000 });
