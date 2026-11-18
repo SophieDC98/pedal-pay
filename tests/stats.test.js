@@ -19,16 +19,20 @@ test('totals of another year are zero', () => {
   assert.deepEqual(totals(st, { year: 2025 }), { rides: 0, km: 0, euros: 0 });
 });
 
-test('streak skips weekends, holidays and missed days and stops at a no', () => {
-  // 17,16 ride; 13 missed; 12 ride; 11 holiday; 10,9 ride; 6,5 ride; 4 is a no
-  assert.equal(streak(st, '2026-11-17'), 7);
+test('streak counts back from today and stops at the first unmarked workday', () => {
+  // 17, 16 ride; 13 missed: the streak ends there
+  assert.equal(streak(st, '2026-11-17'), 2);
 });
 
-test('an unanswered today does not break the streak', () => {
-  assert.equal(streak(st, '2026-11-18'), 7);
+test('unmarked weekends and holidays are skipped, marked ones count', () => {
+  const s2 = { ...st, answers: { '2026-11-09': true, '2026-11-10': true, '2026-11-12': true, '2026-11-13': true, '2026-11-14': true, '2026-11-16': true } };
+  // 16 ride; 15 unmarked Sunday skipped; 14 marked Saturday counts; 13, 12 ride;
+  // 11 holiday skipped; 10, 9 ride; 8, 7 weekend skipped; 6 unmarked workday ends it
+  assert.equal(streak(s2, '2026-11-16'), 6);   // 16, 14, 13, 12, 10, 9
 });
 
-test('a no today gives a streak of 0', () => {
+test('an unanswered today does not break the streak; a No today does', () => {
+  assert.equal(streak(st, '2026-11-18'), 2);
   assert.equal(streak({ ...st, answers: { ...st.answers, '2026-11-18': false } }, '2026-11-18'), 0);
 });
 

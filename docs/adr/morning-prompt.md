@@ -18,7 +18,9 @@ the overlay works without them.
 A missed day counts as no ride. The user can still mark it in the app's month
 calendar.
 
-The streak counts workdays in a row with a ride. Weekends, holidays and missed
-days are skipped; a "No" ends it.
+The streak counts days in a row with a ride, back from today. Marked weekends
+and holidays count, unmarked ones are skipped, and the first workday without a
+ride, answered "No" or never answered, ends it. Today is left out until it has
+an answer, so the streak does not drop to zero every morning.
 
 Mockups: https://claude.ai/artifact/HHi8ZmMXm81tHiQTsGqMJc

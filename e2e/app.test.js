@@ -246,14 +246,14 @@ test('when the browser refuses to save, the user is told and rides are kept in t
   await context.close();
 });
 
-test('unmarking a missed day again does not break the streak', async () => {
-  // 13 and 16 missed; 12 and 17 rides: streak 2
+test('tapping a day on and off again leaves the streak as it was', async () => {
+  // 17 ride, 16 unmarked workday: a 1-day streak
   const { page, context } = await openApp('2026-11-17', { 'pedal-pay': setUpState({ '2026-11-12': true, '2026-11-17': true }) });
   await visible(page, '#main');
-  assert.match(await page.textContent('#stat-streak'), /2-day streak/);
+  assert.match(await page.textContent('#stat-streak'), /1-day streak/);
   await page.click('#calendar [data-key="2026-11-16"]');
   await page.click('#calendar [data-key="2026-11-16"]');
-  assert.match(await page.textContent('#stat-streak'), /2-day streak/);
+  assert.match(await page.textContent('#stat-streak'), /1-day streak/);
   await context.close();
 });
 

@@ -53,6 +53,7 @@ rides before allowance lines are created.
 _Avoid_: generator, popup
 
 **Streak**:
-The number of workdays in a row with a ride. Weekends, public holidays and
-missed days do not break it.
+The number of days in a row with a ride, counting back from today. A weekend
+or holiday counts when it is marked as a ride and is skipped when it is not;
+the first workday without a ride ends it. Today only counts once answered.
 _Avoid_: chain, run

@@ -13,18 +13,17 @@ export function totals(state, { year, month0 }) {
   return { rides, km, euros };
 }
 
-// Workdays in a row with a ride. Weekends, holidays and missed days are
-// skipped; an explicit "no" ends the streak.
+// Days in a row with a ride, counting back from today. A marked weekend or
+// holiday counts; an unmarked one is skipped. The first workday without a ride
+// ends the streak, except today while it has no answer yet.
 export function streak(state, todayKey) {
   const day = fromKey(todayKey);
+  if (!(todayKey in state.answers)) day.setDate(day.getDate() - 1);
   let count = 0;
-  for (let i = 0; i < 400; i++) {
+  for (let i = 0; i < 1000; i++) {
     const key = toKey(day);
-    if (isWorkday(key)) {
-      const answer = state.answers[key];
-      if (answer === true) count++;
-      else if (answer === false) break;
-    }
+    if (state.answers[key] === true) count++;
+    else if (isWorkday(key)) break;
     day.setDate(day.getDate() - 1);
   }
   return count;
