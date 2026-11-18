@@ -48,16 +48,6 @@ export function allowSite(state, origin) {
   return { ...state, allowedSites: [...state.allowedSites, origin] };
 }
 
-// What the fill bookmark changed in ERPx: 'set' days become rides, 'clear'
-// days lose their answer (no ride, but the streak survives).
-export function applyUpdate(state, { set = [], clear = [] }) {
-  const isKey = k => /^\d{4}-\d{2}-\d{2}$/.test(k);
-  const answers = { ...state.answers };
-  for (const k of clear) if (isKey(k)) delete answers[k];
-  for (const k of set) if (isKey(k)) answers[k] = true;
-  return { ...state, answers };
-}
-
 export function isSetUp(state) {
   return state.kmPerRide > 0 && state.ratePerKm > 0;
 }

@@ -34,18 +34,20 @@ the calendar to change it.
 1. In Pedal Pay, open ⚙ and drag the **🚲 Fill bike days in ERPx** button to
    your favourites bar. (Edge shows a globe next to it; bookmarks like this
    cannot have their own icon.)
-2. Open your expense claim in ERPx and click the favourite.
-3. The first time, a small Pedal Pay window asks whether to share your rides
+2. Check the month in Pedal Pay's calendar: that's what will be claimed.
+3. Open your expense claim in ERPx and click the favourite.
+4. The first time, a small Pedal Pay window asks whether to share your rides
    with that ERPx site. Click **Allow**; it remembers this in your browser only.
-4. A panel shows the month with your rides ticked: last month before the
-   15th, this month from the 15th. Days already in ERPx have a check mark and
-   are skipped; click one to remove its bike allowance line instead. Fix
-   anything, then click the button (for example **Add 2 · remove 1**).
-5. The panel removes and adds the bike allowance lines and closes. Check and
-   submit the claim in ERPx yourself.
+5. A small popup says what it does, for example **Adding 12 days of November
+   to ERPx · removing 1**, while a bike rides along the progress bar. It takes
+   last month before the 15th and this month from the 15th, adds your rides
+   and removes bike allowance lines for days that aren't rides in Pedal Pay.
+   **Stop** halts after the current day.
+6. When it's done, the popup closes. Check and submit the claim in ERPx
+   yourself.
 
 If you click **Don't allow**, or Pedal Pay isn't set up in this browser, the
-panel ticks every workday instead, like the original script.
+popup explains what to do and changes nothing.
 
 ## Good to know
 

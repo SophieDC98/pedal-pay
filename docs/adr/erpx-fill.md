@@ -8,43 +8,43 @@ storage away from the installed app.
 
 The app shares rides only with sites the user allowed. The first time a site
 asks, the small window asks "Share your rides with <site>?"; the answer is
-kept in the user's own browser and every other site is refused. The ERPx
-address is never written into the repository or the public site, because it
-names the employer; a GitHub secret was rejected for the same reason, since
-anything it put into the published files would be public. Only ride dates
-and the km per ride are shared.
+kept in the user's own browser and every other site is refused. Allow only
+works after a short moment, so a quick double click elsewhere cannot land on
+it. The ERPx address is never written into the repository or the public
+site, because it names the employer; a GitHub secret was rejected for the
+same reason, since anything it put into the published files would be public.
+Only ride dates and the km per ride are shared.
 
-Changes made in the panel flow back into the app, for allowed sites only:
-days added to ERPx become rides, days removed from ERPx and app rides the user
-unticked lose their answer. The panel opens a second small window on the click
-(the browser blocks it later), sends the changes when ERPx is done, and the
-open app window shows them at once.
+The app is the only place where days are checked. The bookmark takes one
+month, the previous one before the 15th and the current one from the 15th,
+and makes ERPx match the app: it adds the rides that have no bike allowance
+line and removes the bike allowance lines that are not rides. A calendar to
+review the days inside ERPx was tried first and dropped: it repeated the
+app's calendar, and changes made there had to be sent back to the app.
+A line counts as a bike allowance line when its type says so, or when its
+type cannot be read, so an unexpected ERPx field never causes duplicates; a
+train or parking line on the same day is left alone. If the lines in ERPx
+cannot be read at all, nothing is changed.
 
-The bookmark carries the whole review panel, because ERPx may refuse to load
-scripts from elsewhere. The app builds the bookmark link from its own source
-files when it is offered, so there is still no build step.
+A small popup shows what it does, for example "Adding 12 days of November to
+ERPx · removing 1", with a bike riding along a progress bar and a Stop
+button that halts after the current day. It closes itself when done. When
+the app shares no rides (the user said no, the app is not set up in that
+browser, or the small window could not open), the popup explains what to do
+and changes nothing. The bookmark waits up to two minutes for an answer in
+the small window; closing it ends the wait at once.
 
-The panel ticks the rides of the chosen month. Allowance lines are created
-only after the user clicks generate, and days that already have a bike
-allowance line are shown as done and skipped. A train or parking line on the
-same day does not count; a line whose type cannot be read does, so an
-unexpected ERPx field never causes duplicates. If the lines in ERPx cannot be
-read at all, nothing can be added.
+To remove a line, the bookmark selects only that row, presses "Kosten
+verwijderen" and confirms, then checks the line is gone. It never uses ERPx's
+"Verwijderen" button, which deletes the whole expense claim. Removals run
+before additions.
 
-A day already in ERPx can be unticked to remove its bike allowance line: the
-panel selects only that row, presses "Kosten verwijderen" and confirms, then
-checks the line is gone and stops if it is not. Removals run before
-additions. The panel never uses ERPx's "Verwijderen" button, which deletes
-the whole expense claim.
+The bookmark carries all its code, because ERPx may refuse to load scripts
+from elsewhere. The app builds the bookmark link from its own source files
+when it is offered, so there is still no build step.
 
-Without app data (the user said no, the app is not set up, or the small
-window could not open), the panel ticks every workday, as the original
-script does, but leaves the km per ride empty until the user fills it in, so
-nobody claims someone else's distance. The panel waits up to two minutes for
-an answer in the small window; closing it falls back at once.
-
-The panel and the ERPx automation come from a colleague's console script,
-reused with their consent and credited in the README. Where that script
-paused a fixed 1.8 seconds per day, the panel waits until ERPx is ready for
-each step and checks the line was saved with its date, so it is as fast as
-ERPx allows and stops rather than leave a half-filled line.
+The ERPx automation comes from a colleague's console script, reused with
+their consent and credited in the README. Where that script paused a fixed
+1.8 seconds per day, the bookmark waits until ERPx is ready for each step and
+checks the line was saved with its date, so it is as fast as ERPx allows and
+stops rather than leave a half-filled line.

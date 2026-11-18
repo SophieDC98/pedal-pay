@@ -1,7 +1,5 @@
-// Pure helpers for the fill bookmark's review panel. Bundled into the bookmark
-// together with dates.js, so this file only imports from there.
-
-import { monthDays } from './dates.js';
+// Pure helpers for the fill bookmark. Bundled into the bookmark together with
+// dates.js, so this file imports nothing.
 
 const MONTHS_NL = ['januari', 'februari', 'maart', 'april', 'mei', 'juni',
   'juli', 'augustus', 'september', 'oktober', 'november', 'december'];
@@ -14,13 +12,14 @@ export function defaultMonth(todayKey) {
   return { year: date.getFullYear(), month0: date.getMonth() };
 }
 
-// rides: the app's ride keys, or null when the app gave none.
-export function initialTicks(rides, year, month0, existing) {
-  const days = monthDays(year, month0);
-  const keys = rides === null
-    ? days.filter(d => d.workday).map(d => d.key)
-    : days.map(d => d.key).filter(k => rides.includes(k));
-  return new Set(keys.filter(k => !existing.has(k)));
+// What the fill bookmark does to one month so ERPx matches the app: add the
+// rides ERPx lacks, remove the bike lines that are not rides.
+export function planMonth(rides, bikeDays, year, month0) {
+  const prefix = `${year}-${String(month0 + 1).padStart(2, '0')}-`;
+  const rideSet = new Set(rides.filter(k => k.startsWith(prefix)));
+  const add = [...rideSet].filter(k => !bikeDays.has(k)).sort();
+  const remove = [...bikeDays].filter(k => k.startsWith(prefix) && !rideSet.has(k)).sort();
+  return { add, remove };
 }
 
 export function travelPurpose(year, month0) {

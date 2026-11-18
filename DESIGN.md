@@ -14,8 +14,8 @@ Log your bike commutes in a tap, claim your bike allowance in ERPx in one click.
 
 - Every workday morning, someone is asked with one tap whether they biked,
   so nobody has to remember a month of commutes.
-- Claiming the month in ERPx takes one click on a bookmark, followed by a
-  quick review of the days before anything is created.
+- Claiming the month in ERPx takes one click on a bookmark. The app is where
+  the days are checked; ERPx is made to match it.
 - A colleague without technical knowledge can set it up alone, by following
   one page.
 

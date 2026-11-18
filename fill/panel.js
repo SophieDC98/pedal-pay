@@ -1,12 +1,15 @@
-// Pedal Pay's review panel. Runs inside ERPx from the fill bookmark, bundled
-// with src/dates.js and src/fill-logic.js; PEDAL_PAY_URL is set by the bookmark.
+// The fill bookmark. Runs inside ERPx, bundled with src/dates.js and
+// src/fill-logic.js; PEDAL_PAY_URL is set by the bookmark. It makes one month
+// in ERPx match the app and shows its progress in a small popup.
 // The ERPx automation is the colleague's script, reused with their consent.
 
 const PANEL_ID = 'pedal-pay-panel';
 const STYLE_ID = 'pedal-pay-style';
-const MONTH_LABEL = new Intl.DateTimeFormat('en-GB', { month: 'long', year: 'numeric' });
-const WEEKDAY_LABELS = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'];
+const MONTH_NAME = new Intl.DateTimeFormat('en-GB', { month: 'long' });
 const LOGO = '<svg viewBox="0 0 64 64" width="24" height="24" aria-hidden="true"><rect width="64" height="64" rx="16" fill="#D4471F"/><g transform="translate(0 -7)"><g fill="none" stroke="#FFC93C" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="40" r="9"/><path d="M18 40 27 27h13l5 13M27 27l4 13H18M31 40l9-13"/></g><circle cx="46" cy="40" r="10" fill="#FFC93C"/></g></svg>';
+
+// The logo's bike, riding to the right; it takes the text colour.
+const RIDER = '<svg viewBox="8 18 50 34" width="38" height="26" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="40" r="9"/><path d="M18 40 27 27h13l5 13M27 27l4 13H18M31 40l9-13M24 22h6M40 27l-2-6h5"/></g><circle cx="46" cy="40" r="10" fill="#FFC93C" stroke="currentColor" stroke-width="3"/></svg>';
 
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -147,7 +150,10 @@ async function createBikeExpense(key, km) {
 // Getting the rides from the app
 /////////////////////////////////////////////////////////////
 
-// Resolves with { rides, kmPerRide, today } or null when there are none to have.
+const KEY = /^\d{4}-\d{2}-\d{2}$/;
+
+// Resolves with { rides, kmPerRide, today }, or { refused } saying why there
+// are none: 'refused', 'not-set-up' or 'no-answer'.
 function requestRides() {
   return new Promise(resolve => {
     const appOrigin = new URL(PEDAL_PAY_URL).origin;
@@ -162,105 +168,65 @@ function requestRides() {
       resolve(value);
     };
     function onMessage(e) {
-      if (e.origin !== appOrigin) return;
+      if (e.origin !== appOrigin || (win && e.source !== win)) return;
       const data = e.data || {};
       if (data.type === 'pedal-pay-ready') {
         e.source.postMessage({ type: 'pedal-pay-request' }, appOrigin);
       } else if (data.type === 'pedal-pay-rides' && Array.isArray(data.rides)) {
         finish({
-          rides: data.rides.filter(k => /^\d{4}-\d{2}-\d{2}$/.test(k)),
+          rides: data.rides.filter(k => KEY.test(k)),
           kmPerRide: Number(data.kmPerRide) > 0 ? Number(data.kmPerRide) : null,
-          today: /^\d{4}-\d{2}-\d{2}$/.test(data.today) ? data.today : null,
+          today: KEY.test(data.today) ? data.today : null,
         });
       } else if (data.type === 'pedal-pay-refused') {
-        finish(null);
+        finish({ refused: data.reason === 'not-set-up' ? 'not-set-up' : 'refused' });
       }
     }
     window.addEventListener('message', onMessage);
-    const timer = setTimeout(() => finish(null), 120000);
-    // A closed window without an answer counts as no rides.
+    const timer = setTimeout(() => finish({ refused: 'no-answer' }), 120000);
+    // A closed window without an answer means no rides.
     const poll = setInterval(() => {
-      if (win && win.closed) setTimeout(() => finish(null), 400);
+      if (win && win.closed) setTimeout(() => finish({ refused: 'no-answer' }), 400);
     }, 500);
     try {
       win = window.open(`${PEDAL_PAY_URL}handoff.html`, 'pedal-pay-handoff', 'popup,width=460,height=360');
     } catch { win = null; }
-    if (!win) finish(null);
+    if (!win) finish({ refused: 'no-answer' });
   });
 }
 
-// Opens the small window that saves the panel's changes into the app. It
-// must open on the click itself, or the browser blocks it. Resolves the
-// window once it says it is ready, or null.
-function openUpdateWindow() {
-  const appOrigin = new URL(PEDAL_PAY_URL).origin;
-  let win = null;
-  try {
-    win = window.open(`${PEDAL_PAY_URL}handoff.html?update`, 'pedal-pay-update', 'popup,width=420,height=260');
-  } catch { win = null; }
-  if (!win) return Promise.resolve(null);
-  return new Promise(resolve => {
-    const done = value => { window.removeEventListener('message', onMessage); clearTimeout(timer); resolve(value); };
-    function onMessage(e) {
-      if (e.origin === appOrigin && e.source === win && e.data?.type === 'pedal-pay-ready') done(win);
-    }
-    window.addEventListener('message', onMessage);
-    const timer = setTimeout(() => done(null), 15000);
-  });
-}
-
-// Sends the changes to the update window and waits for it to confirm.
-function sendUpdate(win, set, clear) {
-  const appOrigin = new URL(PEDAL_PAY_URL).origin;
-  return new Promise(resolve => {
-    const done = value => { window.removeEventListener('message', onMessage); clearTimeout(timer); resolve(value); };
-    function onMessage(e) {
-      if (e.origin === appOrigin && e.source === win && e.data?.type === 'pedal-pay-updated') done(Boolean(e.data.saved));
-    }
-    window.addEventListener('message', onMessage);
-    const timer = setTimeout(() => done(false), 5000);
-    try { win.postMessage({ type: 'pedal-pay-update', set, clear }, appOrigin); } catch { done(false); }
-  });
-}
+const WHY_NOT = {
+  'refused': 'You chose not to share your Pedal Pay rides with this site. To fill ERPx, click the bookmark again and choose Allow.',
+  'not-set-up': "Pedal Pay isn't set up in this browser yet. Open Pedal Pay, enter your km per ride, then click the bookmark again.",
+  'no-answer': "Pedal Pay's small window could not open or did not answer. Allow pop-ups for this site, then click the bookmark again.",
+};
 
 /////////////////////////////////////////////////////////////
-// The panel
+// The popup
 /////////////////////////////////////////////////////////////
 
 const STYLE = `
-#${PANEL_ID}{--pp-bg:#FFF8F3;--pp-surface:#FFFFFF;--pp-ink:#2B1A14;--pp-muted:#7A6359;--pp-line:#EFDCD2;--pp-brand:#D4471F;--pp-on-brand:#FFFFFF;--pp-sun:#FFC93C;--pp-sun-soft:#FFECB0;--pp-sun-ink:#7A5200;--pp-day:#F3E7E0;--pp-done:#E6DDD7;
-  position:fixed;top:min(80px,6vh);right:20px;z-index:999999;width:340px;max-width:calc(100vw - 40px);max-height:calc(100vh - min(80px,6vh) - 16px);display:flex;flex-direction:column;border-radius:16px;overflow:hidden;
+#${PANEL_ID}{--pp-bg:#FFF8F3;--pp-ink:#2B1A14;--pp-muted:#7A6359;--pp-line:#EFDCD2;--pp-brand:#D4471F;--pp-on-brand:#FFFFFF;--pp-track:#F3E7E0;
+  position:fixed;top:min(80px,6vh);right:20px;z-index:999999;width:340px;max-width:calc(100vw - 40px);border-radius:16px;overflow:hidden;
   background:var(--pp-bg);color:var(--pp-ink);box-shadow:0 10px 30px rgba(0,0,0,.25);font:14px/1.4 "Fredoka","Segoe UI",system-ui,sans-serif;font-variant-numeric:tabular-nums}
-@media (prefers-color-scheme: dark){#${PANEL_ID}{--pp-bg:#151B2E;--pp-surface:#1E2640;--pp-ink:#EDF0F8;--pp-muted:#A3ABC6;--pp-line:#2D375A;--pp-brand:#FF8A4C;--pp-on-brand:#151B2E;--pp-sun-soft:#3D3A2C;--pp-sun-ink:#FFD76A;--pp-day:#262F4D;--pp-done:#2A3352}}
+@media (prefers-color-scheme: dark){#${PANEL_ID}{--pp-bg:#151B2E;--pp-ink:#EDF0F8;--pp-muted:#A3ABC6;--pp-line:#2D375A;--pp-brand:#FF8A4C;--pp-on-brand:#151B2E;--pp-track:#262F4D}}
 #${PANEL_ID} *{box-sizing:border-box;font:inherit;color:inherit}
-#${PANEL_ID} .pp-bar{flex:none;display:flex;align-items:center;gap:8px;padding:10px 14px;background:#D4471F;color:#fff;font-weight:600;cursor:move}
-@media (prefers-color-scheme: dark){#${PANEL_ID} .pp-bar{background:var(--pp-surface);color:var(--pp-ink);border-bottom:1px solid var(--pp-line)}}
+#${PANEL_ID} .pp-bar{display:flex;align-items:center;gap:8px;padding:10px 14px;background:#D4471F;color:#fff;font-weight:600;cursor:move}
+@media (prefers-color-scheme: dark){#${PANEL_ID} .pp-bar{background:#1E2640;color:var(--pp-ink);border-bottom:1px solid var(--pp-line)}}
 #${PANEL_ID} .pp-bar span{flex:1}
 #${PANEL_ID} button{cursor:pointer;border:0;background:none;padding:0}
 #${PANEL_ID} .pp-x{font-size:18px;line-height:1;padding:2px 6px}
-#${PANEL_ID} .pp-body{padding:12px 14px 0;display:flex;flex-direction:column;gap:10px;overflow-y:auto;min-height:0}
-#${PANEL_ID} .pp-foot{position:sticky;bottom:0;margin:0 -14px;padding:8px 14px 12px;background:var(--pp-bg);display:flex;flex-direction:column;gap:6px}
-#${PANEL_ID} .pp-note{margin:0;padding:8px 10px;border-radius:10px;background:var(--pp-sun-soft);color:var(--pp-sun-ink);font-size:13px}
-#${PANEL_ID} .pp-row{display:flex;align-items:center;justify-content:space-between;gap:8px}
-#${PANEL_ID} .pp-month{font-weight:600;font-size:16px}
-#${PANEL_ID} .pp-nav{font-size:20px;padding:0 8px}
-#${PANEL_ID} label{font-weight:500}
-#${PANEL_ID} input{width:80px;padding:6px 8px;border:1px solid var(--pp-line);border-radius:8px;background:var(--pp-surface);text-align:right}
-#${PANEL_ID} .pp-cal{display:grid;grid-template-columns:repeat(7,minmax(0,34px));justify-content:center;gap:4px 8px}
-#${PANEL_ID} .pp-wd{font-size:11px;text-align:center;color:var(--pp-muted)}
-#${PANEL_ID} .pp-day{aspect-ratio:1/1;border-radius:50%;background:var(--pp-day);font-size:13px;display:flex;align-items:center;justify-content:center}
-#${PANEL_ID} .pp-day.off{background:transparent;color:var(--pp-muted)}
-#${PANEL_ID} .pp-day.holiday{background:var(--pp-sun-soft);color:var(--pp-sun-ink)}
-#${PANEL_ID} .pp-day.tick{background:var(--pp-brand);color:var(--pp-on-brand);font-weight:600}
-#${PANEL_ID} .pp-day.done{position:relative;background:var(--pp-done);color:var(--pp-muted)}
-#${PANEL_ID} .pp-day.done.remove{background:transparent;box-shadow:inset 0 0 0 2px var(--pp-brand);color:var(--pp-brand);text-decoration:line-through}
-#${PANEL_ID} .pp-day.done.remove::after{content:'✕'}
-#${PANEL_ID} .pp-day.done::after{content:'✓';position:absolute;top:-3px;right:-3px;width:16px;height:16px;border-radius:50%;background:var(--pp-brand);color:var(--pp-on-brand);font-size:10px;line-height:16px;text-align:center;font-weight:600}
-#${PANEL_ID} .pp-day:focus-visible,#${PANEL_ID} .pp-go:focus-visible{outline:2px solid var(--pp-sun);outline-offset:2px}
-#${PANEL_ID} .pp-sum{margin:0;color:var(--pp-muted);text-align:center;font-size:13px}
-#${PANEL_ID} .pp-go{width:100%;padding:11px;border-radius:999px;background:var(--pp-brand);color:var(--pp-on-brand);font-weight:600;font-size:15px}
-#${PANEL_ID} .pp-go:disabled{opacity:.5;cursor:default}
-#${PANEL_ID} .pp-status{margin:0;text-align:center;font-weight:600;color:var(--pp-brand)}
+#${PANEL_ID} .pp-body{padding:16px;display:flex;flex-direction:column;gap:12px}
+#${PANEL_ID} .pp-message{margin:0;font-weight:600;font-size:15px;text-wrap:balance}
+#${PANEL_ID} .pp-track{position:relative;height:30px;border-radius:999px;background:var(--pp-track);overflow:visible}
+#${PANEL_ID} .pp-fill{position:absolute;inset:0 auto 0 0;width:0;border-radius:999px;background:var(--pp-brand);transition:width .3s ease}
+#${PANEL_ID} .pp-bike{position:absolute;top:50%;left:0;transform:translate(-55%,-62%);line-height:0;color:var(--pp-ink);transition:left .3s ease}
+#${PANEL_ID} .pp-row{display:flex;align-items:center;justify-content:space-between;gap:8px;color:var(--pp-muted);font-size:13px}
+#${PANEL_ID} .pp-stop{padding:6px 14px;border-radius:999px;border:2px solid var(--pp-brand);color:var(--pp-brand);font-weight:600}
+#${PANEL_ID} .pp-stop:disabled{opacity:.5;cursor:default}
+#${PANEL_ID} .pp-status{margin:0;font-weight:600;color:var(--pp-brand)}
+#${PANEL_ID} button:focus-visible{outline:2px solid #FFC93C;outline-offset:2px}
+@media (prefers-reduced-motion: reduce){#${PANEL_ID} .pp-fill,#${PANEL_ID} .pp-bike{transition:none}}
 `;
 
 function closePanel() {
@@ -279,21 +245,30 @@ function makeDraggable(panel, handle) {
   let dx = 0;
   let dy = 0;
   let dragging = false;
+  const move = e => {
+    if (!dragging || !panel.isConnected) return;
+    panel.style.left = `${e.clientX - dx}px`;
+    panel.style.top = `${e.clientY - dy}px`;
+    panel.style.right = 'auto';
+  };
+  const up = () => {
+    dragging = false;
+    if (!panel.isConnected) {
+      document.removeEventListener('mousemove', move);
+      document.removeEventListener('mouseup', up);
+    }
+  };
   handle.addEventListener('mousedown', e => {
     if (e.target.closest('button')) return;
     dragging = true;
     dx = e.clientX - panel.offsetLeft;
     dy = e.clientY - panel.offsetTop;
   });
-  document.addEventListener('mousemove', e => {
-    if (!dragging) return;
-    panel.style.left = `${e.clientX - dx}px`;
-    panel.style.top = `${e.clientY - dy}px`;
-    panel.style.right = 'auto';
-  });
-  document.addEventListener('mouseup', () => { dragging = false; });
+  document.addEventListener('mousemove', move);
+  document.addEventListener('mouseup', up);
 }
 
+// Shows the popup with a first message; returns its body.
 function openPanel() {
   const style = el('style', { id: STYLE_ID });
   style.textContent = STYLE;
@@ -302,7 +277,6 @@ function openPanel() {
     // no-referrer: Google must not learn the ERPx address from this request.
     document.head.append(el('link', { rel: 'stylesheet', referrerpolicy: 'no-referrer', href: 'https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600&display=swap' }));
   }
-
   const panel = el('div', { id: PANEL_ID, role: 'dialog', 'aria-label': 'Pedal Pay' });
   const bar = el('div', { class: 'pp-bar' });
   bar.innerHTML = LOGO;
@@ -311,212 +285,87 @@ function openPanel() {
   close.addEventListener('click', closePanel);
   bar.append(close);
   const body = el('div', { class: 'pp-body' });
-  body.append(el('p', { class: 'pp-sum' }, 'Getting your rides from Pedal Pay…'));
+  body.append(el('p', { class: 'pp-message', id: 'pedal-pay-message', role: 'status' }, 'Getting your rides from Pedal Pay…'));
   panel.append(bar, body);
   document.body.append(panel);
   makeDraggable(panel, bar);
   return body;
 }
 
-function startPanel(body, data) {
-  const todayKey = window.__pedalPayToday || data?.today || toKey(new Date());
-  const rides = data ? data.rides : null;
-  let km = data?.kmPerRide || null; // never guess someone's distance
-  let month = defaultMonth(todayKey);
-  let existing = new Set();
-  let canAdd = true;
-  let note = data ? '' : 'No rides from Pedal Pay: all workdays are ticked. Untick the days you did not bike.';
+function say(body, text) {
+  body.replaceChildren(el('p', { class: 'pp-message', id: 'pedal-pay-message', role: 'status' }, text));
+}
+
+const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
+
+async function run(body, data) {
+  if (data.refused) return say(body, WHY_NOT[data.refused]);
+  if (!data.kmPerRide) return say(body, 'Set your km per ride in Pedal Pay first, then click the bookmark again.');
+
+  const todayKey = window.__pedalPayToday || data.today || toKey(new Date());
+  const { year, month0 } = defaultMonth(todayKey);
+  const monthName = MONTH_NAME.format(new Date(year, month0, 1));
+  let bikeDays;
   try {
-    existing = ERPx.existingDates();
+    bikeDays = ERPx.existingDates();
   } catch {
-    // Without knowing what is already there, adding could create duplicates.
-    canAdd = false;
-    note = 'Pedal Pay could not read the lines already in ERPx. Open the expense claim first, then click the bookmark again.';
+    return say(body, 'Open your expense claim in ERPx first, then click the bookmark again.');
   }
-  let ticks = initialTicks(rides, month.year, month.month0, existing);
-  const removes = new Set(); // days already in ERPx whose bike line should go
-  let busy = false;
-
-  const setPurpose = () => { try { ERPx.setTravelPurpose(travelPurpose(month.year, month.month0)); } catch { /* optional field */ } };
-  setPurpose();
-
-  function render() {
-    body.replaceChildren();
-    const noteEl = el('p', { id: 'pedal-pay-note', class: 'pp-note' }, note);
-    noteEl.hidden = !note;
-    body.append(noteEl);
-
-    const nav = el('div', { class: 'pp-row' });
-    const prev = el('button', { class: 'pp-nav', type: 'button', 'aria-label': 'Previous month' }, '‹');
-    const next = el('button', { class: 'pp-nav', type: 'button', 'aria-label': 'Next month' }, '›');
-    const label = el('span', { class: 'pp-month', id: 'pedal-pay-month' }, MONTH_LABEL.format(new Date(month.year, month.month0, 1)));
-    const move = delta => {
-      if (busy) return;
-      const d = new Date(month.year, month.month0 + delta, 1);
-      month = { year: d.getFullYear(), month0: d.getMonth() };
-      ticks = initialTicks(rides, month.year, month.month0, existing);
-      removes.clear();
-      setPurpose();
-      render();
-    };
-    prev.addEventListener('click', () => move(-1));
-    next.addEventListener('click', () => move(1));
-    nav.append(prev, label, next);
-    body.append(nav);
-
-    const kmRow = el('div', { class: 'pp-row' });
-    kmRow.append(el('label', { for: 'pedal-pay-km' }, 'Km per ride'));
-    const kmInput = el('input', { id: 'pedal-pay-km', inputmode: 'decimal', placeholder: 'km', value: km ? String(km).replace('.', ',') : '' });
-    kmInput.addEventListener('input', () => {
-      const n = Number(kmInput.value.trim().replace(',', '.'));
-      km = n > 0 ? n : null;
-      summary();
-    });
-    kmRow.append(kmInput);
-    body.append(kmRow);
-
-    const cal = el('div', { class: 'pp-cal' });
-    for (const w of WEEKDAY_LABELS) cal.append(el('div', { class: 'pp-wd' }, w));
-    const days = monthDays(month.year, month.month0);
-    for (let i = 0; i < days[0].weekday0Mon; i++) cal.append(el('div'));
-    for (const d of days) {
-      const b = el('button', { type: 'button', class: 'pp-day', 'data-key': d.key });
-      if (existing.has(d.key)) {
-        // Already in ERPx: a click marks its bike line for removal, a second click keeps it.
-        b.classList.add('done');
-        b.textContent = String(d.day);
-        const mark = () => {
-          const removing = removes.has(d.key);
-          b.classList.toggle('remove', removing);
-          b.setAttribute('aria-pressed', String(removing));
-          b.title = removing ? `${d.day}: will be removed from ERPx` : `${d.day}: already in ERPx, click to remove`;
-          b.setAttribute('aria-label', `${d.day}, already in ERPx${removing ? ', will be removed' : ''}`);
-        };
-        mark();
-        b.addEventListener('click', () => {
-          if (busy || !canAdd) return;
-          if (removes.has(d.key)) removes.delete(d.key); else removes.add(d.key);
-          mark();
-          summary();
-        });
-      } else {
-        b.textContent = String(d.day);
-        if (d.holiday) b.classList.add('holiday');
-        else if (!d.workday) b.classList.add('off');
-        if (ticks.has(d.key)) b.classList.add('tick');
-        b.setAttribute('aria-pressed', String(ticks.has(d.key)));
-        b.addEventListener('click', () => {
-          if (busy || existing.has(d.key)) return;
-          if (ticks.has(d.key)) ticks.delete(d.key); else ticks.add(d.key);
-          b.classList.toggle('tick', ticks.has(d.key));
-          b.setAttribute('aria-pressed', String(ticks.has(d.key)));
-          summary();
-        });
-      }
-      cal.append(b);
-    }
-    body.append(cal);
-
-    // The button stays in view at the bottom, even when the calendar scrolls.
-    const foot = el('div', { class: 'pp-foot' });
-    foot.append(el('p', { class: 'pp-sum', id: 'pedal-pay-sum' }));
-    const go = el('button', { class: 'pp-go', id: 'pedal-pay-generate', type: 'button' });
-    go.addEventListener('click', generate);
-    foot.append(go);
-    foot.append(el('p', { class: 'pp-status', id: 'pedal-pay-status', role: 'status' }));
-    body.append(foot);
-    summary();
-  }
-
-  function summary() {
-    const n = ticks.size;
-    const r = removes.size;
-    const days = k => `${k} ${k === 1 ? 'day' : 'days'}`;
-    const sum = document.getElementById('pedal-pay-sum');
-    const go = document.getElementById('pedal-pay-generate');
-    if (!sum || !go) return;
-    sum.textContent = days(n) + (km ? ` · ${Math.round(n * km * 100) / 100} km` : '') + (r ? ` · ${r} to remove` : '');
-    if (!canAdd) go.textContent = 'Open the expense claim first';
-    else if (n && !km) go.textContent = 'Enter your km per ride';
-    else if (n && r) go.textContent = `Add ${n} · remove ${r}`;
-    else if (r) go.textContent = `Remove ${days(r)} from ERPx`;
-    else go.textContent = n ? `Add ${days(n)} to ERPx` : 'No days ticked';
-    go.disabled = busy || (n === 0 && r === 0) || !canAdd || (n > 0 && !km);
-    const kmInput = document.getElementById('pedal-pay-km');
-    if (kmInput) kmInput.disabled = busy;
-  }
-
-  // Redraws the panel, then shows a message under the button.
-  function renderWith(message) {
-    render();
-    document.getElementById('pedal-pay-status').textContent = message;
-  }
-
-  async function generate() {
-    if (busy || (ticks.size === 0 && removes.size === 0) || !canAdd || (ticks.size > 0 && !km)) return;
-    busy = true;
-    // Only when the rides came from the app does the app hear back.
-    const updateReady = rides !== null ? openUpdateWindow() : null;
-    const monthPrefix = `${month.year}-${String(month.month0 + 1).padStart(2, '0')}-`;
-    const addedKeys = [];
-    const removedKeys = [];
-    // Tells the app what changed; after a stop, only what really happened.
-    const syncApp = async complete => {
-      if (!updateReady) return '';
-      const win = await updateReady;
-      if (!win) return ' Pedal Pay could not be updated: open the app to fix those days.';
-      const clear = [...removedKeys];
-      if (complete) {
-        for (const k of rides) if (k.startsWith(monthPrefix) && !existing.has(k)) clear.push(k);
-      }
-      const saved = await sendUpdate(win, addedKeys, clear);
-      return saved ? ' Pedal Pay updated.' : ' Pedal Pay could not be updated: open the app to fix those days.';
-    };
-    summary();
-    const status = document.getElementById('pedal-pay-status');
-    const keys = [...ticks].sort();
-    setPurpose();
-    const lines = k => `${k} ${k === 1 ? 'line' : 'lines'}`;
-    let removed = 0;
-    const toRemove = [...removes].sort();
-    for (const key of toRemove) {
-      status.textContent = `Removing ${removed + 1} of ${toRemove.length}…`;
-      try {
-        await removeBikeLine(key);
-      } catch (err) {
-        busy = false;
-        const note = await syncApp(false);
-        renderWith(`Stopped at ${key}: ${err?.message || err}. ${lines(removed)} removed. Check the claim, then try again.${note}`);
-        return;
-      }
-      removedKeys.push(key);
-      removed++;
-      removes.delete(key);
-      existing.delete(key);
-    }
-    let added = 0;
-    for (const key of keys) {
-      status.textContent = `Adding ${added + 1} of ${keys.length}…`;
-      try {
-        await createBikeExpense(key, km);
-      } catch (err) {
-        busy = false;
-        const note = await syncApp(false);
-        renderWith(`Stopped at ${key}: ${err?.message || err}. ${lines(added)} added${removed ? `, ${removed} removed` : ''}. Check the claim, then try again.${note}`);
-        return;
-      }
-      addedKeys.push(key);
-      added++;
-      existing.add(key);
-      ticks.delete(key);
-    }
-    const done = [added ? `${lines(added)} added` : '', removed ? `${removed} removed` : ''].filter(Boolean).join(', ');
-    const note = await syncApp(true);
-    renderWith(`✅ ${done}. Check and submit the claim in ERPx.${note}`);
+  const plan = planMonth(data.rides, bikeDays, year, month0);
+  const total = plan.add.length + plan.remove.length;
+  if (total === 0) {
+    say(body, `${monthName} is already up to date in ERPx.`);
+    body.append(el('p', { class: 'pp-status', id: 'pedal-pay-status' }, `✅ ${monthName} is already up to date in ERPx.`));
     setTimeout(closePanel, 4000);
+    return;
   }
 
-  render();
+  const parts = [];
+  if (plan.add.length) parts.push(`Adding ${plural(plan.add.length, 'day')} of ${monthName} to ERPx`);
+  if (plan.remove.length) parts.push(plan.add.length ? `removing ${plan.remove.length}` : `Removing ${plural(plan.remove.length, 'day')} of ${monthName} from ERPx`);
+  say(body, parts.join(' · '));
+  const track = el('div', { class: 'pp-track', id: 'pedal-pay-progress', role: 'progressbar', 'aria-valuemin': '0', 'aria-valuemax': String(total), 'aria-valuenow': '0' });
+  const fill = el('div', { class: 'pp-fill' });
+  const bike = el('div', { class: 'pp-bike', 'aria-hidden': 'true' });
+  bike.innerHTML = RIDER;
+  track.append(fill, bike);
+  const row = el('div', { class: 'pp-row' });
+  const count = el('span', {}, `0 of ${total}`);
+  const stop = el('button', { class: 'pp-stop', id: 'pedal-pay-stop', type: 'button' }, 'Stop');
+  row.append(count, stop);
+  const status = el('p', { class: 'pp-status', id: 'pedal-pay-status', role: 'status' });
+  body.append(track, row, status);
+
+  let stopping = false;
+  stop.addEventListener('click', () => { stopping = true; stop.disabled = true; stop.textContent = 'Stopping…'; });
+  let done = 0;
+  const step = () => {
+    done++;
+    const pct = (done / total) * 100;
+    fill.style.width = `${pct}%`;
+    bike.style.left = `${pct}%`;
+    track.setAttribute('aria-valuenow', String(done));
+    count.textContent = `${done} of ${total}`;
+  };
+  let added = 0;
+  let removed = 0;
+  const tally = () => [added ? `${added} added` : '', removed ? `${removed} removed` : ''].filter(Boolean).join(', ') || 'nothing changed';
+  const finish = text => { stop.remove(); status.textContent = text; };
+
+  try { ERPx.setTravelPurpose(travelPurpose(year, month0)); } catch { /* optional field */ }
+  const work = [...plan.remove.map(key => ['remove', key]), ...plan.add.map(key => ['add', key])];
+  for (const [kind, key] of work) {
+    if (stopping) return finish(`Stopped: ${tally()}. Click the bookmark again to do the rest.`);
+    try {
+      if (kind === 'remove') { await removeBikeLine(key); removed++; }
+      else { await createBikeExpense(key, data.kmPerRide); added++; }
+    } catch (err) {
+      return finish(`Stopped at ${key}: ${err?.message || err}. ${tally()}. Check the claim, then click the bookmark again.`);
+    }
+    step();
+  }
+  finish(`✅ ${tally()}. Check and submit the claim in ERPx.`);
+  setTimeout(closePanel, 5000);
 }
 
 if (document.getElementById(PANEL_ID)) {
@@ -524,6 +373,6 @@ if (document.getElementById(PANEL_ID)) {
 } else {
   const body = openPanel();
   requestRides().then(data => {
-    if (document.getElementById(PANEL_ID)) startPanel(body, data);
+    if (document.getElementById(PANEL_ID)) run(body, data);
   });
 }

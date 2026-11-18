@@ -3,17 +3,16 @@
 Status: done.
 
 The fill bookmark: clicked on the ERPx expense page, it fetches the rides and
-the km per ride from the app and shows the review panel, built from the
-colleague's script.
+the km per ride from the app and makes one month in ERPx match them.
 
-- The panel opens on the previous month before the 15th, and on the current
-  month from the 15th. The user can move between months.
-- Rides of that month are ticked. Days that already have a line in ERPx show
-  a check mark and cannot be ticked, so nothing is added twice.
-- The km per ride comes from the app and can be changed in the panel.
-- Generate creates one allowance line per ticked day, shows how many were
-  added, and closes itself after a few seconds.
-- The panel follows the app's look, in light and dark.
+- It takes the previous month before the 15th and the current month from the
+  15th.
+- It adds the rides that have no bike allowance line in ERPx and removes the
+  bike allowance lines that are not rides in the app.
+- A small popup shows what it is doing, with a bike riding along a progress
+  bar and a Stop button, and closes itself when done.
+- When the app shares no rides, the popup says what to do and changes nothing.
+- The popup follows the app's look, in light and dark.
 - Until the install page exists, Settings in the app offers the fill bookmark
   as a link to drag to the favourites bar.
 

@@ -39,18 +39,18 @@ One bike allowance expense line in ERPx, of type FIETSVG, for one ride.
 _Avoid_: expense, row
 
 **Fill bookmark**:
-The browser favourite that, clicked on the ERPx page, creates allowance
-lines from the logged rides.
+The browser favourite that, clicked on the ERPx page, makes one month's
+allowance lines match the logged rides.
 _Avoid_: bookmarklet, script
 
 **Allowed site**:
 An ERPx site the user let the app share their rides with, asked once per site.
 _Avoid_: trusted domain, whitelist
 
-**Review panel**:
-The calendar the fill bookmark shows inside ERPx, where the user checks the
-rides before allowance lines are created.
-_Avoid_: generator, popup
+**Fill popup**:
+The small window the fill bookmark shows inside ERPx while it adds and
+removes allowance lines, with a progress bar.
+_Avoid_: review panel, generator
 
 **Streak**:
 The number of days in a row with a ride, counting back from today. A weekend

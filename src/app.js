@@ -1,7 +1,7 @@
 // Pedal Pay's screens. The only module that touches the page, storage and notifications.
 
 import { toKey, fromKey, monthDays } from './dates.js';
-import { STORAGE_KEY, loadState, saveState, setAnswer, clearAnswer, isSetUp, parseDecimal } from './store.js';
+import { loadState, saveState, setAnswer, clearAnswer, isSetUp, parseDecimal } from './store.js';
 import { totals, streak, promptDue, needsPrompt, formatEuros } from './stats.js';
 import { bookmarkUrl } from './bookmark.js';
 
@@ -308,12 +308,6 @@ document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible') refresh();
 });
 window.addEventListener('focus', refresh);
-// The fill bookmark's small window saves changes from ERPx; show them at once.
-window.addEventListener('storage', e => {
-  if (e.key !== STORAGE_KEY) return;
-  state = loadState(storage);
-  if (!$('main').hidden) renderMain();
-});
 setInterval(refresh, 60 * 1000);
 
 if (isSetUp(state)) { showMain(); refresh(); } else show('setup');

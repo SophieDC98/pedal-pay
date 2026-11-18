@@ -38,31 +38,51 @@ after(async () => {
   server?.kill();
 });
 
-const appState = JSON.stringify({
-  version: 1, kmPerRide: 18, ratePerKm: 0.36, reminderTime: '09:00', allowedSites: [],
-  answers: { '2026-11-03': true, '2026-11-16': true, '2026-11-17': true, '2026-11-18': false },
-});
+const ride = keys => Object.fromEntries(keys.map(k => [k, true]));
+const stateWith = (answers, extra = {}) => JSON.stringify({
+  version: 1, kmPerRide: 18, ratePerKm: 0.36, reminderTime: '09:00', allowedSites: [], answers, ...extra });
 
-async function newContext() {
+// A browser where the app holds these answers; the fake ERPx starts with a
+// bike line on 3 November.
+async function newContext(answers = { ...ride(['2026-11-03', '2026-11-16', '2026-11-17']), '2026-11-18': false }, extra) {
   const context = await browser.newContext({ serviceWorkers: 'block' });
-  await context.addInitScript(s => {
-    if (location.hostname === 'localhost' && !localStorage.getItem('pedal-pay')) {
-      localStorage.setItem('pedal-pay', s);
-      localStorage.setItem('pedal-pay-today', '2026-11-18');
-    }
-  }, appState);
+  if (answers !== null) {
+    await context.addInitScript(s => {
+      if (location.hostname === 'localhost' && !localStorage.getItem('pedal-pay')) {
+        localStorage.setItem('pedal-pay', s);
+        localStorage.setItem('pedal-pay-today', '2026-11-18');
+      }
+    }, stateWith(answers, extra));
+  }
   return context;
 }
 
-async function clickBookmark(context) {
-  const page = context.pages()[0] || await context.newPage();
-  if (!page.url().startsWith(erpBase)) await page.goto(`${erpBase}e2e/fake-erpx.html`);
+// Opens the fake ERPx, runs `before` there, clicks the bookmark and returns
+// the ERPx page and the small Pedal Pay window.
+async function clickBookmark(context, before) {
+  let page = context.pages().find(p => p.url().startsWith(erpBase));
+  if (!page) {
+    page = await context.newPage();
+    await page.goto(`${erpBase}e2e/fake-erpx.html`);
+    if (before) await page.evaluate(before);
+  }
   const popup = context.waitForEvent('page', { timeout: 5000 }).catch(() => null);
   await page.evaluate(code => { window.__pedalPayToday = '2026-11-18'; (0, eval)(code); }, bookmarkCode);
   return { page, popup: await popup };
 }
 
-const ticked = page => page.$$eval('#pedal-pay-panel [data-key].tick', els => els.map(e => e.dataset.key).sort());
+async function clickAndAllow(context, before) {
+  const { page, popup } = await clickBookmark(context, before);
+  await popup.waitForSelector('#handoff-ask:not([hidden])');
+  await popup.click('#handoff-allow');
+  return page;
+}
+
+const message = page => page.textContent('#pedal-pay-message');
+const status = page => page.textContent('#pedal-pay-status');
+const doneWith = (page, text, timeout = 30000) => page.waitForSelector(`#pedal-pay-status:has-text("${text}")`, { timeout });
+const lines = page => page.evaluate(() => window.fake.records.map(r =>
+  `${new Date(r.data.expenseDate).getDate()}:${r.data.expenseType ?? '-'}:${r.data.quantity ?? '-'}`).sort((a, b) => parseInt(a) - parseInt(b)));
 const storedSites = async context => {
   const p = await context.newPage();
   await p.goto(appBase + 'handoff.html');
@@ -71,317 +91,144 @@ const storedSites = async context => {
   return sites;
 };
 
-test('an unknown site is asked about; after Allow the rides are filled into ERPx', async () => {
+test('after Allow, the month\'s rides are added with a progress bar, and the popup closes', async () => {
   const context = await newContext();
   const { page, popup } = await clickBookmark(context);
-  assert.ok(popup, 'the handoff window opened');
+  assert.ok(popup, 'the small window opened');
   await popup.waitForSelector('#handoff-ask:not([hidden])');
   assert.match(await popup.textContent('#handoff-host'), /127\.0\.0\.1/);
   await popup.click('#handoff-allow');
 
-  await page.waitForSelector('#pedal-pay-panel [data-key].tick');
-  assert.deepEqual(await ticked(page), ['2026-11-16', '2026-11-17']);
-  assert.match(await page.getAttribute('#pedal-pay-panel [data-key="2026-11-03"]', 'class'), /done/);
-  assert.match(await page.getAttribute('#pedal-pay-panel [data-key="2026-11-03"]', 'aria-label'), /already in ERPx/);
-  assert.equal(await page.textContent('#pedal-pay-panel [data-key="2026-11-03"]'), '3');
-  assert.equal(await page.inputValue('#pedal-pay-km'), '18');
+  await page.waitForSelector('#pedal-pay-progress');
+  assert.match(await message(page), /Adding 2 days of November to ERPx/);
+  assert.equal(await page.locator('#pedal-pay-panel .pp-bike').count(), 1);
+  await doneWith(page, '2 added');
+  assert.deepEqual(await lines(page), ['3:FIETSVG:18', '16:FIETSVG:18', '17:FIETSVG:18']);
   assert.equal(await page.evaluate(() => window.fake.purpose.value), 'Fietsvergoeding november 2026');
-
-  await page.click('#pedal-pay-generate');
-  await page.waitForFunction(() => window.fake.records.length === 3, null, { timeout: 15000 });
-  const added = await page.evaluate(() => window.fake.records.slice(1).map(r => ({
-    date: `${r.data.expenseDate.getFullYear()}-${r.data.expenseDate.getMonth() + 1}-${r.data.expenseDate.getDate()}`,
-    type: r.data.expenseType, km: r.data.quantity })));
-  assert.deepEqual(added, [
-    { date: '2026-11-16', type: 'FIETSVG', km: 18 },
-    { date: '2026-11-17', type: 'FIETSVG', km: 18 },
-  ]);
-  await page.waitForSelector('#pedal-pay-status:has-text("2 lines added")');
   await page.waitForSelector('#pedal-pay-panel', { state: 'detached', timeout: 8000 });
   assert.deepEqual(await storedSites(context), [new URL(erpBase).origin]);
 
-  // The second time, the allowed site is not asked again.
-  const second = await clickBookmark(context);
-  // 16 and 17 November are now in ERPx, so they show as done; no question was asked.
-  await page.waitForSelector('#pedal-pay-panel [data-key="2026-11-16"].done', { timeout: 8000 });
-  assert.equal(await page.isHidden('#pedal-pay-note'), true);
-  assert.deepEqual(await ticked(page), []);
-  if (second.popup && !second.popup.isClosed()) {
-    assert.equal(await second.popup.isHidden('#handoff-ask').catch(() => true), true);
-  }
+  // The second time there is no question, and nothing left to do.
+  await clickBookmark(context);
+  await doneWith(page, 'already up to date', 10000);
   await context.close();
 });
 
-test('Don\'t allow ticks every workday, explains why, and remembers nothing', async () => {
+test('bike lines that are not rides in the app are removed; other lines and the claim stay', async () => {
+  const context = await newContext(ride(['2026-11-16']));
+  const page = await clickAndAllow(context, () => {
+    window.fake.records.push({ data: { expenseDate: new Date(2026, 10, 3), expenseType: 'TREIN' } });
+  });
+  await page.waitForSelector('#pedal-pay-progress');
+  assert.match(await message(page), /Adding 1 day of November to ERPx · removing 1/);
+  await doneWith(page, '1 removed');
+  assert.deepEqual(await lines(page), ['3:TREIN:-', '16:FIETSVG:18']);
+  assert.equal(await page.evaluate(() => window.fake.claimDeleted), false);
+  await context.close();
+});
+
+test('Stop halts after the current day', async () => {
+  const context = await newContext(ride(['2026-11-02', '2026-11-03', '2026-11-04', '2026-11-05', '2026-11-06', '2026-11-09']));
+  const page = await clickAndAllow(context, () => { window.fake.delay = 400; });
+  await page.waitForSelector('#pedal-pay-stop');
+  await page.click('#pedal-pay-stop');
+  await doneWith(page, 'Stopped');
+  const added = (await lines(page)).length - 1;
+  assert.ok(added >= 0 && added < 5, `${added} days were added after Stop`);
+  await context.close();
+});
+
+test('after an ERPx error it stops; clicking again adds only what is missing', async () => {
+  const context = await newContext();
+  const page = await clickAndAllow(context, () => { window.fake.failOnDay = 17; });
+  await doneWith(page, 'Stopped at 2026-11-17');
+  await page.evaluate(() => { window.fake.failOnDay = null; });
+  await page.click('#pedal-pay-panel .pp-x');
+  await clickBookmark(context);
+  await doneWith(page, '1 added');
+  assert.deepEqual(await lines(page), ['3:FIETSVG:18', '16:FIETSVG:18', '17:FIETSVG:18']);
+  await context.close();
+});
+
+test('Don\'t allow explains what to do and adds nothing', async () => {
   const context = await newContext();
   const { page, popup } = await clickBookmark(context);
   await popup.waitForSelector('#handoff-ask:not([hidden])');
   await popup.click('#handoff-deny');
-  await page.waitForSelector('#pedal-pay-note:not([hidden])');
-  assert.match(await page.textContent('#pedal-pay-note'), /all workdays are ticked/);
-  assert.equal((await ticked(page)).length, 19);   // 20 workdays, 3 November already in ERPx
+  await page.waitForSelector('#pedal-pay-message:has-text("chose not to share")');
+  assert.equal(await page.locator('#pedal-pay-progress').count(), 0);
+  assert.equal(await page.evaluate(() => window.fake.records.length), 1);
   assert.deepEqual(await storedSites(context), []);
   await context.close();
 });
 
-test('clicking the bookmark again closes the panel', async () => {
+test('when the app is not set up, the popup says so and adds nothing', async () => {
+  const context = await newContext(null);
+  const { page, popup } = await clickBookmark(context);
+  await popup.waitForSelector('#handoff-setup:not([hidden])');
+  await page.waitForSelector('#pedal-pay-message:has-text("isn\'t set up")');
+  assert.equal(await page.evaluate(() => window.fake.records.length), 1);
+  await context.close();
+});
+
+test('without the expense claim open, nothing is added', async () => {
+  const context = await newContext();
+  const page = await clickAndAllow(context, () => { window.fake.noGrid = true; });
+  await page.waitForSelector('#pedal-pay-message:has-text("Open your expense claim")');
+  assert.equal(await page.locator('#pedal-pay-progress').count(), 0);
+  await context.close();
+});
+
+test('existing dates stored as text are recognised', async () => {
+  const context = await newContext();
+  const page = await clickAndAllow(context, () => {
+    window.fake.records.push({ data: { expenseDate: '2026-11-17T00:00:00', expenseType: 'FIETSVG' } });
+  });
+  await doneWith(page, '1 added');
+  assert.deepEqual(await lines(page), ['3:FIETSVG:18', '16:FIETSVG:18', '17:FIETSVG:-']);
+  await context.close();
+});
+
+test('clicking the bookmark again closes the popup', async () => {
   const context = await newContext();
   const { page, popup } = await clickBookmark(context);
   await popup.waitForSelector('#handoff-ask:not([hidden])');
-  await popup.click('#handoff-deny');
   await page.waitForSelector('#pedal-pay-panel');
   await page.evaluate(code => (0, eval)(code), bookmarkCode);
   assert.equal(await page.locator('#pedal-pay-panel').count(), 0);
   await context.close();
 });
 
-test('when the app is not set up, the window says so and the panel falls back', async () => {
-  const context = await browser.newContext({ serviceWorkers: 'block' });
-  const page = await context.newPage();
-  await page.goto(`${erpBase}e2e/fake-erpx.html`);
-  const popupEvent = context.waitForEvent('page', { timeout: 5000 });
-  await page.evaluate(code => { window.__pedalPayToday = '2026-11-18'; (0, eval)(code); }, bookmarkCode);
-  const popup = await popupEvent;
-  await popup.waitForSelector('#handoff-setup:not([hidden])');
-  await page.waitForSelector('#pedal-pay-note:not([hidden])');
-  assert.equal((await ticked(page)).length, 19);
-  await context.close();
-});
-
-async function openAllowed(context, before) {
-  const page = await context.newPage();
-  await page.goto(`${erpBase}e2e/fake-erpx.html`);
-  if (before) await page.evaluate(before);
-  const popupEvent = context.waitForEvent('page', { timeout: 5000 });
-  await page.evaluate(code => { window.__pedalPayToday = '2026-11-18'; (0, eval)(code); }, bookmarkCode);
-  const popup = await popupEvent;
-  await popup.waitForSelector('#handoff-ask:not([hidden])');
-  await popup.click('#handoff-allow');
-  return page;
-}
-
-test('after an ERPx error, days already added are locked and never added twice', async () => {
-  const context = await newContext();
-  const page = await openAllowed(context, () => { window.fake.failOnDay = 17; });
-  await page.waitForSelector('#pedal-pay-panel [data-key].tick');
-  await page.click('#pedal-pay-generate');
-  await page.waitForSelector('#pedal-pay-status:has-text("Stopped")', { timeout: 15000 });
-  assert.match(await page.getAttribute('#pedal-pay-panel [data-key="2026-11-16"]', 'class'), /done/);
-  assert.deepEqual(await ticked(page), ['2026-11-17']);
-  await page.evaluate(() => { window.fake.failOnDay = null; });
-  await page.click('#pedal-pay-generate');
-  await page.waitForSelector('#pedal-pay-status:has-text("1 line added")', { timeout: 15000 });
-  const days = await page.evaluate(() => window.fake.records.filter(r => r.data.expenseDate).map(r => new Date(r.data.expenseDate).getDate()).sort((a, b) => a - b));
-  assert.deepEqual(days, [3, 16, 17]);
-  await context.close();
-});
-
-test('existing dates stored as text still count, and without the expense grid nothing can be added', async () => {
-  const context = await newContext();
-  const page = await openAllowed(context, () => { window.fake.records.push({ data: { expenseDate: '2026-11-17T00:00:00' } }); });
-  await page.waitForSelector('#pedal-pay-panel [data-key="2026-11-17"].done');
-  assert.deepEqual(await ticked(page), ['2026-11-16']);
+test('days are added as fast as ERPx is ready, and a slow ERPx is waited for', async () => {
+  const six = ['2026-11-02', '2026-11-04', '2026-11-05', '2026-11-06', '2026-11-09', '2026-11-10'];
+  const context = await newContext(ride(six));
+  const page = await clickAndAllow(context, () => { window.fake.records.length = 0; });
+  const started = Date.now();
+  await doneWith(page, '6 added');
+  const seconds = (Date.now() - started) / 1000;
+  assert.ok(seconds < 6, `6 days took ${seconds}s (fixed waits took about 11s)`);
   await context.close();
 
-  const context2 = await newContext();
-  const page2 = await openAllowed(context2, () => { window.fake.noGrid = true; });
-  await page2.waitForSelector('#pedal-pay-note:not([hidden])');
-  assert.match(await page2.textContent('#pedal-pay-note'), /could not read/);
-  assert.equal(await page2.isDisabled('#pedal-pay-generate'), true);
-  await context2.close();
+  const slow = await newContext(ride(six.slice(0, 2)));
+  const page2 = await clickAndAllow(slow, () => { window.fake.records.length = 0; window.fake.delay = 900; });
+  await doneWith(page2, '2 added');
+  assert.deepEqual(await lines(page2), ['2:FIETSVG:18', '4:FIETSVG:18']);
+  await slow.close();
 });
 
 test('Allow cannot be clicked the instant the question appears', async () => {
   const context = await newContext();
-  const page = await context.newPage();
-  await page.goto(`${erpBase}e2e/fake-erpx.html`);
-  const popupEvent = context.waitForEvent('page', { timeout: 5000 });
-  await page.evaluate(code => { window.__pedalPayToday = '2026-11-18'; (0, eval)(code); }, bookmarkCode);
-  const popup = await popupEvent;
+  const { popup } = await clickBookmark(context);
   await popup.waitForSelector('#handoff-ask:not([hidden])');
   assert.equal(await popup.isDisabled('#handoff-allow'), true);
   await popup.waitForSelector('#handoff-allow:not([disabled])', { timeout: 3000 });
   await context.close();
 });
 
-test('without rides from the app, km per ride starts empty and must be filled in', async () => {
+test('the popup\'s font request does not tell Google the ERPx address', async () => {
   const context = await newContext();
-  const { page, popup } = await clickBookmark(context);
-  await popup.waitForSelector('#handoff-ask:not([hidden])');
-  await popup.click('#handoff-deny');
-  await page.waitForSelector('#pedal-pay-note:not([hidden])');
-  assert.equal(await page.inputValue('#pedal-pay-km'), '');
-  assert.equal(await page.isDisabled('#pedal-pay-generate'), true);
-  assert.match(await page.textContent('#pedal-pay-generate'), /km per ride/);
-  await page.fill('#pedal-pay-km', '12,5');
-  assert.equal(await page.isDisabled('#pedal-pay-generate'), false);
-  await context.close();
-});
-
-test('only bike allowance lines (or lines without a type) mark a day as already in ERPx', async () => {
-  const context = await newContext();
-  const page = await openAllowed(context, () => {
-    window.fake.records.push({ data: { expenseDate: new Date(2026, 10, 16), expenseType: 'TREIN' } });
-    window.fake.records.push({ data: { expenseDate: new Date(2026, 10, 17) } });
-    window.fake.records.push({ data: { expenseDate: new Date(2026, 10, 12), expenseType: 'Fietsvergoeding (woon-werkverkeer)' } });
-  });
-  await page.waitForSelector('#pedal-pay-panel [data-key="2026-11-17"].done');
-  assert.match(await page.getAttribute('#pedal-pay-panel [data-key="2026-11-12"]', 'class'), /done/);
-  assert.doesNotMatch(await page.getAttribute('#pedal-pay-panel [data-key="2026-11-16"]', 'class'), /done/);
-  assert.deepEqual(await ticked(page), ['2026-11-16']);
-  await context.close();
-});
-
-test('the panel\'s font request does not tell Google the ERPx address', async () => {
-  const context = await newContext();
-  const page = await openAllowed(context);
-  await page.waitForSelector('#pedal-pay-panel [data-key].tick');
+  const { page } = await clickBookmark(context);
+  await page.waitForSelector('#pedal-pay-panel');
   assert.equal(await page.getAttribute('link[href*="family=Fredoka"]', 'referrerpolicy'), 'no-referrer');
-  await context.close();
-});
-
-test('the panel fits in a short window and its button stays visible', async () => {
-  const context = await newContext();
-  const page = await context.newPage();
-  await page.setViewportSize({ width: 600, height: 560 });
-  await page.goto(`${erpBase}e2e/fake-erpx.html`);
-  const popupEvent = context.waitForEvent('page', { timeout: 5000 });
-  await page.evaluate(code => { window.__pedalPayToday = '2026-11-18'; (0, eval)(code); }, bookmarkCode);
-  const popup = await popupEvent;
-  await popup.waitForSelector('#handoff-ask:not([hidden])');
-  await popup.click('#handoff-allow');
-  await page.waitForSelector('#pedal-pay-panel [data-key].tick');
-  const { panelBottom, buttonBottom } = await page.evaluate(() => ({
-    panelBottom: document.getElementById('pedal-pay-panel').getBoundingClientRect().bottom,
-    buttonBottom: document.getElementById('pedal-pay-generate').getBoundingClientRect().bottom,
-  }));
-  assert.ok(panelBottom <= 560, `panel ends at ${panelBottom}px`);
-  assert.ok(buttonBottom <= 560, `button ends at ${buttonBottom}px`);
-  await context.close();
-});
-
-const linesIn = page => page.evaluate(() => window.fake.records.map(r => ({
-  day: new Date(r.data.expenseDate).getDate(), type: r.data.expenseType ?? null })).sort((a, b) => a.day - b.day));
-
-test('unticking a day already in ERPx removes only its bike line, never the claim', async () => {
-  const context = await newContext();
-  const page = await openAllowed(context, () => {
-    window.fake.records.push({ data: { expenseDate: new Date(2026, 10, 3), expenseType: 'TREIN' } });
-  });
-  await page.waitForSelector('#pedal-pay-panel [data-key="2026-11-03"].done');
-  await page.click('#pedal-pay-panel [data-key="2026-11-03"]');
-  assert.match(await page.getAttribute('#pedal-pay-panel [data-key="2026-11-03"]', 'class'), /remove/);
-  assert.match(await page.textContent('#pedal-pay-generate'), /Add 2 · remove 1/);
-  await page.click('#pedal-pay-generate');
-  await page.waitForSelector('#pedal-pay-status:has-text("1 removed")', { timeout: 20000 });
-  assert.deepEqual(await linesIn(page), [
-    { day: 3, type: 'TREIN' }, { day: 16, type: 'FIETSVG' }, { day: 17, type: 'FIETSVG' }]);
-  assert.equal(await page.evaluate(() => window.fake.claimDeleted), false);
-  await context.close();
-});
-
-test('clicking a day marked for removal again keeps its line', async () => {
-  const context = await newContext();
-  const page = await openAllowed(context);
-  await page.waitForSelector('#pedal-pay-panel [data-key="2026-11-03"].done');
-  await page.click('#pedal-pay-panel [data-key="2026-11-03"]');
-  await page.click('#pedal-pay-panel [data-key="2026-11-03"]');
-  assert.doesNotMatch(await page.getAttribute('#pedal-pay-panel [data-key="2026-11-03"]', 'class'), /remove/);
-  assert.match(await page.textContent('#pedal-pay-generate'), /^Add 2 days/);
-  await context.close();
-});
-
-test('when ERPx does not remove the line, the panel stops and says so', async () => {
-  const context = await newContext();
-  const page = await openAllowed(context, () => { window.fake.noConfirm = true; });
-  await page.waitForSelector('#pedal-pay-panel [data-key="2026-11-03"].done');
-  await page.click('#pedal-pay-panel [data-key="2026-11-03"]');
-  await page.click('#pedal-pay-generate');
-  await page.waitForSelector('#pedal-pay-status:has-text("Stopped")', { timeout: 20000 });
-  assert.match(await page.textContent('#pedal-pay-status'), /2026-11-03/);
-  assert.equal(await page.evaluate(() => window.fake.records.length), 1);
-  await context.close();
-});
-
-async function fillMany(before, rides) {
-  const state = JSON.stringify({ version: 1, kmPerRide: 18, ratePerKm: 0.36, reminderTime: '09:00', allowedSites: [],
-    answers: Object.fromEntries(rides.map(k => [k, true])) });
-  const context = await browser.newContext({ serviceWorkers: 'block' });
-  await context.addInitScript(s => {
-    if (location.hostname === 'localhost' && !localStorage.getItem('pedal-pay')) localStorage.setItem('pedal-pay', s);
-  }, state);
-  const page = await openAllowed(context, before);
-  await page.waitForSelector('#pedal-pay-panel [data-key].tick');
-  const started = Date.now();
-  await page.click('#pedal-pay-generate');
-  await page.waitForSelector('#pedal-pay-status:has-text("lines added")', { timeout: 60000 });
-  const seconds = (Date.now() - started) / 1000;
-  const days = await page.evaluate(() => window.fake.records.slice(1).map(r => `${new Date(r.data.expenseDate).getDate()}:${r.data.quantity}:${r.data.expenseType}`));
-  await context.close();
-  return { seconds, days };
-}
-
-const sixRides = ['2026-11-02', '2026-11-04', '2026-11-05', '2026-11-06', '2026-11-09', '2026-11-10'];
-const sixDays = ['2:18:FIETSVG', '4:18:FIETSVG', '5:18:FIETSVG', '6:18:FIETSVG', '9:18:FIETSVG', '10:18:FIETSVG'];
-
-test('days are added as fast as ERPx is ready, not after fixed waits', async () => {
-  const { seconds, days } = await fillMany(null, sixRides);
-  assert.deepEqual(days, sixDays);
-  assert.ok(seconds < 6, `6 days took ${seconds}s (fixed waits took about 11s)`);
-});
-
-test('a slow ERPx gets waited for, so every line is still complete', async () => {
-  const { days } = await fillMany(() => { window.fake.delay = 900; }, sixRides.slice(0, 2));
-  assert.deepEqual(days, sixDays.slice(0, 2));
-});
-
-const appAnswers = context => context.newPage().then(async p => {
-  await p.goto(appBase + 'handoff.html');
-  const answers = await p.evaluate(() => JSON.parse(localStorage.getItem('pedal-pay')).answers);
-  await p.close();
-  return answers;
-});
-
-test('changes made in the panel are saved back into the app', async () => {
-  const context = await newContext();
-  const page = await openAllowed(context);
-  await page.waitForSelector('#pedal-pay-panel [data-key].tick');
-  await page.click('#pedal-pay-panel [data-key="2026-11-17"]');   // untick an app ride: not added
-  await page.click('#pedal-pay-panel [data-key="2026-11-19"]');   // tick a new day: added
-  await page.click('#pedal-pay-panel [data-key="2026-11-03"]');   // remove a line already in ERPx
-  const updateWindow = context.waitForEvent('page', { timeout: 5000 });
-  await page.click('#pedal-pay-generate');
-  const win = await updateWindow;
-  await win.waitForSelector('#handoff-update:not([hidden])');
-  await page.waitForSelector('#pedal-pay-status:has-text("Pedal Pay updated")', { timeout: 30000 });
-  assert.deepEqual(await appAnswers(context), { '2026-11-16': true, '2026-11-18': false, '2026-11-19': true });
-  await context.close();
-});
-
-test('without rides from the app, the panel changes nothing in the app', async () => {
-  const context = await newContext();
-  const { page, popup } = await clickBookmark(context);
-  await popup.waitForSelector('#handoff-ask:not([hidden])');
-  await popup.click('#handoff-deny');
-  await page.waitForSelector('#pedal-pay-note:not([hidden])');
-  await page.fill('#pedal-pay-km', '18');
-  await page.click('#pedal-pay-panel [data-key="2026-11-19"]');
-  await page.click('#pedal-pay-generate');
-  await page.waitForSelector('#pedal-pay-status:has-text("lines added")', { timeout: 60000 });
-  assert.deepEqual(await appAnswers(context), { '2026-11-03': true, '2026-11-16': true, '2026-11-17': true, '2026-11-18': false });
-  await context.close();
-});
-
-test('an app window that is already open shows the changes right away', async () => {
-  const context = await newContext();
-  const app = await context.newPage();
-  await app.goto(appBase);
-  await app.waitForSelector('#main:not([hidden])');
-  const page = await openAllowed(context);
-  await page.waitForSelector('#pedal-pay-panel [data-key].tick');
-  await page.click('#pedal-pay-panel [data-key="2026-11-19"]');
-  await page.click('#pedal-pay-generate');
-  await page.waitForSelector('#pedal-pay-status:has-text("Pedal Pay updated")', { timeout: 30000 });
-  await app.waitForSelector('#calendar [data-key="2026-11-19"].ride', { timeout: 5000 });
   await context.close();
 });

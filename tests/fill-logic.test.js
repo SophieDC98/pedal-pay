@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { defaultMonth, initialTicks, travelPurpose } from '../src/fill-logic.js';
+import { defaultMonth, planMonth, travelPurpose } from '../src/fill-logic.js';
 
 test('defaultMonth: previous month before the 15th, current month from the 15th', () => {
   assert.deepEqual(defaultMonth('2026-11-14'), { year: 2026, month0: 9 });
@@ -8,14 +8,17 @@ test('defaultMonth: previous month before the 15th, current month from the 15th'
   assert.deepEqual(defaultMonth('2027-01-03'), { year: 2026, month0: 11 });
 });
 
-test('initialTicks takes the month\'s rides and leaves out days already in ERPx', () => {
-  const ticks = initialTicks(['2026-10-30', '2026-11-02', '2026-11-03'], 2026, 10, new Set(['2026-11-03']));
-  assert.deepEqual([...ticks], ['2026-11-02']);
+test('planMonth adds the month\'s rides that ERPx lacks and removes bike lines that are not rides', () => {
+  const rides = ['2026-10-30', '2026-11-02', '2026-11-03', '2026-11-16'];
+  const bikeDays = new Set(['2026-11-03', '2026-11-05', '2026-12-01']);
+  assert.deepEqual(planMonth(rides, bikeDays, 2026, 10), {
+    add: ['2026-11-02', '2026-11-16'],
+    remove: ['2026-11-05'],
+  });
 });
 
-test('initialTicks without app data ticks every workday', () => {
-  assert.equal(initialTicks(null, 2026, 10, new Set()).size, 20);
-  assert.equal(initialTicks(null, 2026, 10, new Set(['2026-11-02'])).size, 19);
+test('planMonth with everything in place has nothing to do', () => {
+  assert.deepEqual(planMonth(['2026-11-02'], new Set(['2026-11-02']), 2026, 10), { add: [], remove: [] });
 });
 
 test('travelPurpose uses the Dutch month name', () => {

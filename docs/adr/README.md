@@ -28,4 +28,4 @@ it to find which decisions bear on a piece of work.
 
 ## ERPx
 
-- [ERPx fill](erpx-fill.md) the fill bookmark fetches rides through a small window, then a review panel.
+- [ERPx fill](erpx-fill.md) the fill bookmark fetches rides through a small window and makes one month in ERPx match them.
