@@ -14,6 +14,12 @@ names the employer; a GitHub secret was rejected for the same reason, since
 anything it put into the published files would be public. Only ride dates
 and the km per ride are shared.
 
+Changes made in the panel flow back into the app, for allowed sites only:
+days added to ERPx become rides, days removed from ERPx and app rides the user
+unticked lose their answer. The panel opens a second small window on the click
+(the browser blocks it later), sends the changes when ERPx is done, and the
+open app window shows them at once.
+
 The bookmark carries the whole review panel, because ERPx may refuse to load
 scripts from elsewhere. The app builds the bookmark link from its own source
 files when it is offered, so there is still no build step.

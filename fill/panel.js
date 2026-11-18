@@ -189,6 +189,40 @@ function requestRides() {
   });
 }
 
+// Opens the small window that saves the panel's changes into the app. It
+// must open on the click itself, or the browser blocks it. Resolves the
+// window once it says it is ready, or null.
+function openUpdateWindow() {
+  const appOrigin = new URL(PEDAL_PAY_URL).origin;
+  let win = null;
+  try {
+    win = window.open(`${PEDAL_PAY_URL}handoff.html?update`, 'pedal-pay-update', 'popup,width=420,height=260');
+  } catch { win = null; }
+  if (!win) return Promise.resolve(null);
+  return new Promise(resolve => {
+    const done = value => { window.removeEventListener('message', onMessage); clearTimeout(timer); resolve(value); };
+    function onMessage(e) {
+      if (e.origin === appOrigin && e.source === win && e.data?.type === 'pedal-pay-ready') done(win);
+    }
+    window.addEventListener('message', onMessage);
+    const timer = setTimeout(() => done(null), 15000);
+  });
+}
+
+// Sends the changes to the update window and waits for it to confirm.
+function sendUpdate(win, set, clear) {
+  const appOrigin = new URL(PEDAL_PAY_URL).origin;
+  return new Promise(resolve => {
+    const done = value => { window.removeEventListener('message', onMessage); clearTimeout(timer); resolve(value); };
+    function onMessage(e) {
+      if (e.origin === appOrigin && e.source === win && e.data?.type === 'pedal-pay-updated') done(Boolean(e.data.saved));
+    }
+    window.addEventListener('message', onMessage);
+    const timer = setTimeout(() => done(false), 5000);
+    try { win.postMessage({ type: 'pedal-pay-update', set, clear }, appOrigin); } catch { done(false); }
+  });
+}
+
 /////////////////////////////////////////////////////////////
 // The panel
 /////////////////////////////////////////////////////////////
@@ -421,6 +455,23 @@ function startPanel(body, data) {
   async function generate() {
     if (busy || (ticks.size === 0 && removes.size === 0) || !canAdd || (ticks.size > 0 && !km)) return;
     busy = true;
+    // Only when the rides came from the app does the app hear back.
+    const updateReady = rides !== null ? openUpdateWindow() : null;
+    const monthPrefix = `${month.year}-${String(month.month0 + 1).padStart(2, '0')}-`;
+    const addedKeys = [];
+    const removedKeys = [];
+    // Tells the app what changed; after a stop, only what really happened.
+    const syncApp = async complete => {
+      if (!updateReady) return '';
+      const win = await updateReady;
+      if (!win) return ' Pedal Pay could not be updated: open the app to fix those days.';
+      const clear = [...removedKeys];
+      if (complete) {
+        for (const k of rides) if (k.startsWith(monthPrefix) && !existing.has(k)) clear.push(k);
+      }
+      const saved = await sendUpdate(win, addedKeys, clear);
+      return saved ? ' Pedal Pay updated.' : ' Pedal Pay could not be updated: open the app to fix those days.';
+    };
     summary();
     const status = document.getElementById('pedal-pay-status');
     const keys = [...ticks].sort();
@@ -434,9 +485,11 @@ function startPanel(body, data) {
         await removeBikeLine(key);
       } catch (err) {
         busy = false;
-        renderWith(`Stopped at ${key}: ${err?.message || err}. ${lines(removed)} removed. Check the claim, then try again.`);
+        const note = await syncApp(false);
+        renderWith(`Stopped at ${key}: ${err?.message || err}. ${lines(removed)} removed. Check the claim, then try again.${note}`);
         return;
       }
+      removedKeys.push(key);
       removed++;
       removes.delete(key);
       existing.delete(key);
@@ -448,15 +501,18 @@ function startPanel(body, data) {
         await createBikeExpense(key, km);
       } catch (err) {
         busy = false;
-        renderWith(`Stopped at ${key}: ${err?.message || err}. ${lines(added)} added${removed ? `, ${removed} removed` : ''}. Check the claim, then try again.`);
+        const note = await syncApp(false);
+        renderWith(`Stopped at ${key}: ${err?.message || err}. ${lines(added)} added${removed ? `, ${removed} removed` : ''}. Check the claim, then try again.${note}`);
         return;
       }
+      addedKeys.push(key);
       added++;
       existing.add(key);
       ticks.delete(key);
     }
     const done = [added ? `${lines(added)} added` : '', removed ? `${removed} removed` : ''].filter(Boolean).join(', ');
-    renderWith(`✅ ${done}. Check and submit the claim in ERPx.`);
+    const note = await syncApp(true);
+    renderWith(`✅ ${done}. Check and submit the claim in ERPx.${note}`);
     setTimeout(closePanel, 4000);
   }
 

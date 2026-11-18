@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { emptyState, loadState, saveState, setAnswer, clearAnswer, allowSite, isSetUp, parseDecimal, STORAGE_KEY } from '../src/store.js';
+import { emptyState, loadState, saveState, setAnswer, clearAnswer, allowSite, applyUpdate, isSetUp, parseDecimal, STORAGE_KEY } from '../src/store.js';
 
 const mem = (init = {}) => {
   const m = new Map(Object.entries(init));
@@ -75,4 +75,11 @@ test('allowed sites start empty and allowSite adds each origin once', () => {
   assert.deepEqual(b.allowedSites, ['https://erp.example']);
   assert.deepEqual(emptyState().allowedSites, []);
   assert.deepEqual(loadState(mem({ 'pedal-pay': '{"version":1,"answers":{}}' })).allowedSites, []);
+});
+
+test('applyUpdate marks added days as rides and clears the others, without mutating', () => {
+  const before = { ...emptyState(), answers: { '2026-11-03': true, '2026-11-17': true, '2026-11-18': false } };
+  const after = applyUpdate(before, { set: ['2026-11-19'], clear: ['2026-11-03', '2026-11-17', 'nonsense'] });
+  assert.deepEqual(after.answers, { '2026-11-18': false, '2026-11-19': true });
+  assert.equal(before.answers['2026-11-03'], true);
 });

@@ -334,3 +334,54 @@ test('a slow ERPx gets waited for, so every line is still complete', async () =>
   const { days } = await fillMany(() => { window.fake.delay = 900; }, sixRides.slice(0, 2));
   assert.deepEqual(days, sixDays.slice(0, 2));
 });
+
+const appAnswers = context => context.newPage().then(async p => {
+  await p.goto(appBase + 'handoff.html');
+  const answers = await p.evaluate(() => JSON.parse(localStorage.getItem('pedal-pay')).answers);
+  await p.close();
+  return answers;
+});
+
+test('changes made in the panel are saved back into the app', async () => {
+  const context = await newContext();
+  const page = await openAllowed(context);
+  await page.waitForSelector('#pedal-pay-panel [data-key].tick');
+  await page.click('#pedal-pay-panel [data-key="2026-11-17"]');   // untick an app ride: not added
+  await page.click('#pedal-pay-panel [data-key="2026-11-19"]');   // tick a new day: added
+  await page.click('#pedal-pay-panel [data-key="2026-11-03"]');   // remove a line already in ERPx
+  const updateWindow = context.waitForEvent('page', { timeout: 5000 });
+  await page.click('#pedal-pay-generate');
+  const win = await updateWindow;
+  await win.waitForSelector('#handoff-update:not([hidden])');
+  await page.waitForSelector('#pedal-pay-status:has-text("Pedal Pay updated")', { timeout: 30000 });
+  assert.deepEqual(await appAnswers(context), { '2026-11-16': true, '2026-11-18': false, '2026-11-19': true });
+  await context.close();
+});
+
+test('without rides from the app, the panel changes nothing in the app', async () => {
+  const context = await newContext();
+  const { page, popup } = await clickBookmark(context);
+  await popup.waitForSelector('#handoff-ask:not([hidden])');
+  await popup.click('#handoff-deny');
+  await page.waitForSelector('#pedal-pay-note:not([hidden])');
+  await page.fill('#pedal-pay-km', '18');
+  await page.click('#pedal-pay-panel [data-key="2026-11-19"]');
+  await page.click('#pedal-pay-generate');
+  await page.waitForSelector('#pedal-pay-status:has-text("lines added")', { timeout: 60000 });
+  assert.deepEqual(await appAnswers(context), { '2026-11-03': true, '2026-11-16': true, '2026-11-17': true, '2026-11-18': false });
+  await context.close();
+});
+
+test('an app window that is already open shows the changes right away', async () => {
+  const context = await newContext();
+  const app = await context.newPage();
+  await app.goto(appBase);
+  await app.waitForSelector('#main:not([hidden])');
+  const page = await openAllowed(context);
+  await page.waitForSelector('#pedal-pay-panel [data-key].tick');
+  await page.click('#pedal-pay-panel [data-key="2026-11-19"]');
+  await page.click('#pedal-pay-generate');
+  await page.waitForSelector('#pedal-pay-status:has-text("Pedal Pay updated")', { timeout: 30000 });
+  await app.waitForSelector('#calendar [data-key="2026-11-19"].ride', { timeout: 5000 });
+  await context.close();
+});
