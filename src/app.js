@@ -6,6 +6,12 @@ import { totals, streak, promptDue, needsPrompt, formatEuros } from './stats.js'
 import { bookmarkUrl } from './bookmark.js';
 
 const $ = id => document.getElementById(id);
+// Binds a handler, skipping an element that an older cached page lacks, so a
+// half-updated app still starts instead of showing nothing.
+function on(id, type, fn) {
+  const el = $(id);
+  if (el) el.addEventListener(type, fn);
+}
 const storage = (() => { try { return window.localStorage; } catch { return null; } })();
 const views = ['setup', 'main', 'settings'];
 const monthName = new Intl.DateTimeFormat('en-GB', { month: 'long', year: 'numeric' });
@@ -214,7 +220,7 @@ async function buildFillBookmark() {
     link.textContent = 'The fill bookmark could not be built offline. Try again when online.';
   }
 }
-$('fill-bookmark-link').addEventListener('click', e => e.preventDefault());
+on('fill-bookmark-link', 'click', e => e.preventDefault());
 
 // Asked once, from the Start button, so the browser accepts the request.
 function askNotificationPermission() {
@@ -225,7 +231,7 @@ function askNotificationPermission() {
   } catch { /* not supported */ }
 }
 
-$('setup-form').addEventListener('submit', e => {
+on('setup-form', 'submit', e => {
   e.preventDefault();
   const values = readNumbers('setup');
   if (!values) return;
@@ -235,15 +241,15 @@ $('setup-form').addEventListener('submit', e => {
   refresh();
 });
 
-$('prompt-yes').addEventListener('click', () => answer(true));
-$('prompt-no').addEventListener('click', () => answer(false));
+on('prompt-yes', 'click', () => answer(true));
+on('prompt-no', 'click', () => answer(false));
 
-$('scope-month').addEventListener('click', () => { scope = 'month'; renderMain(); });
-$('scope-year').addEventListener('click', () => { scope = 'year'; renderMain(); });
-$('month-prev').addEventListener('click', () => moveMonth(-1));
-$('month-next').addEventListener('click', () => moveMonth(1));
+on('scope-month', 'click', () => { scope = 'month'; renderMain(); });
+on('scope-year', 'click', () => { scope = 'year'; renderMain(); });
+on('month-prev', 'click', () => moveMonth(-1));
+on('month-next', 'click', () => moveMonth(1));
 
-$('calendar').addEventListener('click', e => {
+on('calendar', 'click', e => {
   const b = e.target.closest('button.day');
   if (!b || b.disabled) return;
   const key = b.dataset.key;
@@ -255,7 +261,7 @@ $('calendar').addEventListener('click', e => {
   renderMain();
 });
 
-$('open-settings').addEventListener('click', () => {
+on('open-settings', 'click', () => {
   $('settings-km').value = formatNumber(state.kmPerRide);
   $('settings-rate').value = formatNumber(state.ratePerKm);
   $('settings-reminder').value = state.reminderTime;
@@ -284,10 +290,10 @@ function saveSettingsField(field) {
   if (value !== null) save({ ...state, [name]: value });
 }
 for (const field of ['km', 'rate', 'reminder']) {
-  $(`settings-${field}`).addEventListener('input', () => saveSettingsField(field));
+  on(`settings-${field}`, 'input', () => saveSettingsField(field));
 }
-$('settings-form').addEventListener('submit', e => e.preventDefault());
-$('settings-close').addEventListener('click', () => { showMain(); refresh(); });
+on('settings-form', 'submit', e => e.preventDefault());
+on('settings-close', 'click', () => { showMain(); refresh(); });
 
 // The notification's Yes and No buttons answer through the service worker.
 navigator.serviceWorker?.addEventListener('message', e => {

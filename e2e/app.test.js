@@ -347,3 +347,31 @@ test('the bookmark is named after what it does', async () => {
   assert.equal((await page.textContent('#fill-bookmark-link')).trim(), '🚲 Fill bike days in ERPx');
   await context.close();
 });
+
+test('an older cached page with a newer script still shows the app', async () => {
+  const context = await browser.newContext({ serviceWorkers: 'block' });
+  await context.addInitScript(s => {
+    localStorage.setItem('pedal-pay-today', '2026-11-17');
+    localStorage.setItem('pedal-pay-now', '09:30');
+    localStorage.setItem('pedal-pay', s);
+  }, setUpState({ '2026-11-17': true }));
+  // Serve the page without the newest button, as a browser cache might.
+  await context.route(/\/(index\.html)?$/, async route => {
+    const res = await route.fetch();
+    const html = (await res.text()).replace(/<button id="settings-close"[^>]*>.*?<\/button>/, '');
+    await route.fulfill({ response: res, body: html });
+  });
+  const page = await context.newPage();
+  const errors = [];
+  page.on('pageerror', e => errors.push(e.message));
+  await page.goto(base);
+  await visible(page, '#main');
+  assert.deepEqual(errors, []);
+  await context.close();
+});
+
+test('the offline helper always asks the server for the newest files', async () => {
+  const sw = await (await fetch(new URL('sw.js', base))).text();
+  assert.match(sw, /cache: 'no-cache'/);
+  assert.match(sw, /cache: 'reload'/);
+});

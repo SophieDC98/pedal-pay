@@ -1,5 +1,5 @@
 // Keeps Pedal Pay working offline and handles the morning notification's buttons.
-const CACHE = 'pedal-pay-v2';
+const CACHE = 'pedal-pay-v3';
 const FILES = [
   './', './index.html', './styles.css', './manifest.webmanifest',
   './handoff.html', './src/app.js', './src/dates.js', './src/store.js', './src/stats.js',
@@ -8,7 +8,10 @@ const FILES = [
 ];
 
 self.addEventListener('install', event => {
-  event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(FILES)).then(() => self.skipWaiting()));
+  // 'reload' skips the browser's HTTP cache, so the saved copy is one version.
+  event.waitUntil(caches.open(CACHE)
+    .then(cache => cache.addAll(FILES.map(f => new Request(f, { cache: 'reload' }))))
+    .then(() => self.skipWaiting()));
 });
 
 self.addEventListener('activate', event => {
@@ -24,7 +27,13 @@ self.addEventListener('fetch', event => {
   if (event.request.method !== 'GET') return;
   event.respondWith((async () => {
     try {
-      const response = await fetch(event.request);
+      // 'no-cache' asks the server every time, so the page and its scripts are
+      // never a mix of an old and a new version (GitHub Pages lets browsers
+      // keep files for ten minutes).
+      const request = event.request.mode === 'navigate'
+        ? new Request(event.request.url, { cache: 'no-cache', credentials: 'same-origin' })
+        : new Request(event.request, { cache: 'no-cache' });
+      const response = await fetch(request);
       if (response.ok && new URL(event.request.url).origin === self.location.origin) {
         const cache = await caches.open(CACHE);
         cache.put(event.request, response.clone());
