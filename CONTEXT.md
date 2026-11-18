@@ -43,6 +43,10 @@ The browser favourite that, clicked on the ERPx page, creates allowance
 lines from the logged rides.
 _Avoid_: bookmarklet, script
 
+**Allowed site**:
+An ERPx site the user let the app share their rides with, asked once per site.
+_Avoid_: trusted domain, whitelist
+
 **Review panel**:
 The calendar the fill bookmark shows inside ERPx, where the user checks the
 rides before allowance lines are created.

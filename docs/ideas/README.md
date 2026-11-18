@@ -14,3 +14,4 @@ Each idea gets one line below, a link and a few words.
 - [Yearly overview](yearly-overview.md) achievements for biking.
 - [Car allowance](car-allowance.md) logging car commutes as well.
 - [Backup](backup.md) exporting the logged rides to a file and importing them again.
+- [Claimed months](claimed-months.md) marking months already filled into ERPx.
