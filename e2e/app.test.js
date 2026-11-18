@@ -287,7 +287,7 @@ test('the reminder time is saved in Settings', async () => {
   await page.click('#open-settings');
   assert.equal(await page.inputValue('#settings-reminder'), '09:00');
   await page.fill('#settings-reminder', '07:45');
-  await page.click('#settings-save');
+  await page.click('#settings-close');
   await visible(page, '#main');
   const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('pedal-pay')).reminderTime);
   assert.equal(saved, '07:45');
@@ -304,5 +304,46 @@ test('Settings offers the fill bookmark, built for this app address', async () =
   assert.match(code, new RegExp(`const PEDAL_PAY_URL = "${base.replace(/[.]/g, '\\.')}";`));
   assert.match(code, /function defaultMonth/);
   assert.doesNotMatch(code, /^\s*(import|export)\s/m);
+  await context.close();
+});
+
+test('Settings saves every change by itself and closes with the cross', async () => {
+  const { page, context } = await openApp('2026-11-17', { 'pedal-pay': setUpState({ '2026-11-17': true }) });
+  await visible(page, '#main');
+  await page.click('#open-settings');
+  // Compare a count, never a page handle: a failing check would try to print the whole browser connection.
+  assert.equal(await page.locator('#settings-save').count(), 0);
+  await page.fill('#settings-km', '20');
+  const stored = () => page.evaluate(() => JSON.parse(localStorage.getItem('pedal-pay')));
+  assert.equal((await stored()).kmPerRide, 20);
+  await page.fill('#settings-rate', 'abc');
+  await visible(page, '#settings-rate-error');
+  assert.equal((await stored()).ratePerKm, 0.36);
+  await page.click('#settings-close');
+  await visible(page, '#main');
+  assert.match(await page.textContent('#stat-km'), /20/);
+  await context.close();
+});
+
+test('the whole month fits in a small app window without scrolling', async () => {
+  const context = await browser.newContext({ serviceWorkers: 'block', viewport: { width: 420, height: 600 } });
+  await context.addInitScript(s => {
+    localStorage.setItem('pedal-pay-today', '2026-11-17');
+    localStorage.setItem('pedal-pay-now', '09:30');
+    localStorage.setItem('pedal-pay', s);
+  }, setUpState({ '2026-11-17': true }));
+  const page = await context.newPage();
+  await page.goto(base);
+  await visible(page, '#main');
+  const bottom = await page.evaluate(() => document.querySelector('#calendar [data-key="2026-11-30"]').getBoundingClientRect().bottom);
+  assert.ok(bottom <= 600, `last day ends at ${bottom}px`);
+  await context.close();
+});
+
+test('the bookmark is named after what it does', async () => {
+  const { page, context } = await openApp('2026-11-17', { 'pedal-pay': setUpState({ '2026-11-17': true }) });
+  await visible(page, '#main');
+  await page.click('#open-settings');
+  assert.equal((await page.textContent('#fill-bookmark-link')).trim(), '🚲 Fill bike days in ERPx');
   await context.close();
 });

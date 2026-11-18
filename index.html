@@ -56,7 +56,11 @@
     </section>
 
     <section id="settings" class="view" hidden>
-      <h1>Settings</h1>
+      <div class="view-head">
+        <h1>Settings</h1>
+        <button id="settings-close" class="icon-button" type="button" aria-label="Close settings">✕</button>
+      </div>
+      <p class="hint small">Changes are saved as you type.</p>
       <form id="settings-form" novalidate>
         <label for="settings-km">Km per ride</label>
         <input id="settings-km" inputmode="decimal" autocomplete="off">
@@ -68,15 +72,11 @@
         <input id="settings-reminder" type="time" step="60">
         <p class="field-error" id="settings-reminder-error" hidden></p>
         <p class="hint small">On workdays. If your PC starts later, Pedal Pay asks as soon as it opens.</p>
-        <div class="form-buttons">
-          <button id="settings-save" class="primary" type="submit">Save</button>
-          <button id="settings-cancel" class="secondary" type="button">Cancel</button>
-        </div>
       </form>
       <p class="hint">Your rides are stored only in this browser, on this PC.</p>
       <h2>Fill bookmark</h2>
       <p class="hint">Drag this button to your favourites bar. Then click it on the ERPx expense page to fill in your rides.</p>
-      <a id="fill-bookmark-link" class="bookmark-link" href="#" draggable="true">🚲 Pedal Pay fill</a>
+      <a id="fill-bookmark-link" class="bookmark-link" href="#" draggable="true">🚲 Fill bike days in ERPx</a>
     </section>
   </main>
 

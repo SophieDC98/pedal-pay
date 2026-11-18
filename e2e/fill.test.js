@@ -131,7 +131,7 @@ test('clicking the bookmark again closes the panel', async () => {
   await popup.click('#handoff-deny');
   await page.waitForSelector('#pedal-pay-panel');
   await page.evaluate(code => (0, eval)(code), bookmarkCode);
-  assert.equal(await page.$('#pedal-pay-panel'), null);
+  assert.equal(await page.locator('#pedal-pay-panel').count(), 0);
   await context.close();
 });
 
@@ -237,5 +237,25 @@ test('the panel\'s font request does not tell Google the ERPx address', async ()
   const page = await openAllowed(context);
   await page.waitForSelector('#pedal-pay-panel [data-key].tick');
   assert.equal(await page.getAttribute('link[href*="family=Fredoka"]', 'referrerpolicy'), 'no-referrer');
+  await context.close();
+});
+
+test('the panel fits in a short window and its button stays visible', async () => {
+  const context = await newContext();
+  const page = await context.newPage();
+  await page.setViewportSize({ width: 600, height: 560 });
+  await page.goto(`${erpBase}e2e/fake-erpx.html`);
+  const popupEvent = context.waitForEvent('page', { timeout: 5000 });
+  await page.evaluate(code => { window.__pedalPayToday = '2026-11-18'; (0, eval)(code); }, bookmarkCode);
+  const popup = await popupEvent;
+  await popup.waitForSelector('#handoff-ask:not([hidden])');
+  await popup.click('#handoff-allow');
+  await page.waitForSelector('#pedal-pay-panel [data-key].tick');
+  const { panelBottom, buttonBottom } = await page.evaluate(() => ({
+    panelBottom: document.getElementById('pedal-pay-panel').getBoundingClientRect().bottom,
+    buttonBottom: document.getElementById('pedal-pay-generate').getBoundingClientRect().bottom,
+  }));
+  assert.ok(panelBottom <= 560, `panel ends at ${panelBottom}px`);
+  assert.ok(buttonBottom <= 560, `button ends at ${buttonBottom}px`);
   await context.close();
 });

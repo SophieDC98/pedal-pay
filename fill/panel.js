@@ -123,23 +123,24 @@ function requestRides() {
 
 const STYLE = `
 #${PANEL_ID}{--pp-bg:#FFF8F3;--pp-surface:#FFFFFF;--pp-ink:#2B1A14;--pp-muted:#7A6359;--pp-line:#EFDCD2;--pp-brand:#D4471F;--pp-on-brand:#FFFFFF;--pp-sun:#FFC93C;--pp-sun-soft:#FFECB0;--pp-sun-ink:#7A5200;--pp-day:#F3E7E0;--pp-done:#E6DDD7;
-  position:fixed;top:80px;right:20px;z-index:999999;width:360px;max-width:calc(100vw - 40px);border-radius:16px;overflow:hidden;
+  position:fixed;top:min(80px,6vh);right:20px;z-index:999999;width:340px;max-width:calc(100vw - 40px);max-height:calc(100vh - min(80px,6vh) - 16px);display:flex;flex-direction:column;border-radius:16px;overflow:hidden;
   background:var(--pp-bg);color:var(--pp-ink);box-shadow:0 10px 30px rgba(0,0,0,.25);font:14px/1.4 "Fredoka","Segoe UI",system-ui,sans-serif;font-variant-numeric:tabular-nums}
 @media (prefers-color-scheme: dark){#${PANEL_ID}{--pp-bg:#151B2E;--pp-surface:#1E2640;--pp-ink:#EDF0F8;--pp-muted:#A3ABC6;--pp-line:#2D375A;--pp-brand:#FF8A4C;--pp-on-brand:#151B2E;--pp-sun-soft:#3D3A2C;--pp-sun-ink:#FFD76A;--pp-day:#262F4D;--pp-done:#2A3352}}
 #${PANEL_ID} *{box-sizing:border-box;font:inherit;color:inherit}
-#${PANEL_ID} .pp-bar{display:flex;align-items:center;gap:8px;padding:10px 14px;background:#D4471F;color:#fff;font-weight:600;cursor:move}
+#${PANEL_ID} .pp-bar{flex:none;display:flex;align-items:center;gap:8px;padding:10px 14px;background:#D4471F;color:#fff;font-weight:600;cursor:move}
 @media (prefers-color-scheme: dark){#${PANEL_ID} .pp-bar{background:var(--pp-surface);color:var(--pp-ink);border-bottom:1px solid var(--pp-line)}}
 #${PANEL_ID} .pp-bar span{flex:1}
 #${PANEL_ID} button{cursor:pointer;border:0;background:none;padding:0}
 #${PANEL_ID} .pp-x{font-size:18px;line-height:1;padding:2px 6px}
-#${PANEL_ID} .pp-body{padding:14px;display:flex;flex-direction:column;gap:12px}
+#${PANEL_ID} .pp-body{padding:12px 14px 0;display:flex;flex-direction:column;gap:10px;overflow-y:auto;min-height:0}
+#${PANEL_ID} .pp-foot{position:sticky;bottom:0;margin:0 -14px;padding:8px 14px 12px;background:var(--pp-bg);display:flex;flex-direction:column;gap:6px}
 #${PANEL_ID} .pp-note{margin:0;padding:8px 10px;border-radius:10px;background:var(--pp-sun-soft);color:var(--pp-sun-ink);font-size:13px}
 #${PANEL_ID} .pp-row{display:flex;align-items:center;justify-content:space-between;gap:8px}
 #${PANEL_ID} .pp-month{font-weight:600;font-size:16px}
 #${PANEL_ID} .pp-nav{font-size:20px;padding:0 8px}
 #${PANEL_ID} label{font-weight:500}
 #${PANEL_ID} input{width:80px;padding:6px 8px;border:1px solid var(--pp-line);border-radius:8px;background:var(--pp-surface);text-align:right}
-#${PANEL_ID} .pp-cal{display:grid;grid-template-columns:repeat(7,1fr);gap:5px}
+#${PANEL_ID} .pp-cal{display:grid;grid-template-columns:repeat(7,minmax(0,34px));justify-content:center;gap:4px 8px}
 #${PANEL_ID} .pp-wd{font-size:11px;text-align:center;color:var(--pp-muted)}
 #${PANEL_ID} .pp-day{aspect-ratio:1/1;border-radius:50%;background:var(--pp-day);font-size:13px;display:flex;align-items:center;justify-content:center}
 #${PANEL_ID} .pp-day.off{background:transparent;color:var(--pp-muted)}
@@ -148,7 +149,7 @@ const STYLE = `
 #${PANEL_ID} .pp-day.done{position:relative;background:var(--pp-done);color:var(--pp-muted);cursor:default}
 #${PANEL_ID} .pp-day.done::after{content:'✓';position:absolute;top:-3px;right:-3px;width:16px;height:16px;border-radius:50%;background:var(--pp-brand);color:var(--pp-on-brand);font-size:10px;line-height:16px;text-align:center;font-weight:600}
 #${PANEL_ID} .pp-day:focus-visible,#${PANEL_ID} .pp-go:focus-visible{outline:2px solid var(--pp-sun);outline-offset:2px}
-#${PANEL_ID} .pp-sum{color:var(--pp-muted);text-align:center;font-size:13px}
+#${PANEL_ID} .pp-sum{margin:0;color:var(--pp-muted);text-align:center;font-size:13px}
 #${PANEL_ID} .pp-go{width:100%;padding:11px;border-radius:999px;background:var(--pp-brand);color:var(--pp-on-brand);font-weight:600;font-size:15px}
 #${PANEL_ID} .pp-go:disabled{opacity:.5;cursor:default}
 #${PANEL_ID} .pp-status{margin:0;text-align:center;font-weight:600;color:var(--pp-brand)}
@@ -294,11 +295,14 @@ function startPanel(body, data) {
     }
     body.append(cal);
 
-    body.append(el('p', { class: 'pp-sum', id: 'pedal-pay-sum' }));
+    // The button stays in view at the bottom, even when the calendar scrolls.
+    const foot = el('div', { class: 'pp-foot' });
+    foot.append(el('p', { class: 'pp-sum', id: 'pedal-pay-sum' }));
     const go = el('button', { class: 'pp-go', id: 'pedal-pay-generate', type: 'button' });
     go.addEventListener('click', generate);
-    body.append(go);
-    body.append(el('p', { class: 'pp-status', id: 'pedal-pay-status', role: 'status' }));
+    foot.append(go);
+    foot.append(el('p', { class: 'pp-status', id: 'pedal-pay-status', role: 'status' }));
+    body.append(foot);
     summary();
   }
 

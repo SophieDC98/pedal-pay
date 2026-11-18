@@ -84,8 +84,9 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--sun); outli
   border-radius: 8px;
 }
 
-main { max-width: 420px; margin: 0 auto; padding: 20px 16px 32px; }
-.view { display: flex; flex-direction: column; gap: 16px; }
+main { max-width: 420px; margin: 0 auto; padding: 12px 16px 20px; }
+.view { display: flex; flex-direction: column; gap: 10px; }
+.view-head { display: flex; align-items: center; justify-content: space-between; }
 h1 { font-size: 1.5rem; font-weight: 600; margin: 0; text-wrap: balance; }
 h2 { font-size: 1.1rem; font-weight: 600; margin: 0; }
 .hint { color: var(--muted); margin: 0; }
@@ -124,14 +125,14 @@ input[aria-invalid="true"] { border-color: var(--error); }
 form > .primary { margin-top: 14px; }
 
 .numbers { display: flex; flex-direction: column; align-items: center; gap: 4px; text-align: center; }
-.scope { display: inline-flex; background: var(--day); border-radius: 999px; padding: 3px; margin-bottom: 8px; }
+.scope { display: inline-flex; background: var(--day); border-radius: 999px; padding: 3px; margin-bottom: 6px; }
 .scope button { border: 0; background: none; padding: 4px 14px; border-radius: 999px; color: var(--muted); font-size: .9rem; }
 .scope button[aria-pressed="true"] { background: var(--surface); color: var(--ink); font-weight: 600; box-shadow: 0 1px 2px rgba(0, 0, 0, .15); }
-.stat-km { font-size: 3rem; font-weight: 600; line-height: 1; color: var(--brand); }
+.stat-km { font-size: 2.5rem; font-weight: 600; line-height: 1; color: var(--brand); }
 .stat-km small { font-size: 1.2rem; font-weight: 500; margin-left: 4px; }
 .stat-euros { font-size: 1.15rem; font-weight: 500; }
 .stat-streak {
-  margin-top: 8px;
+  margin-top: 6px;
   padding: 4px 14px;
   border-radius: 999px;
   background: var(--sun);
@@ -141,8 +142,8 @@ form > .primary { margin-top: 14px; }
 }
 
 .month-nav { display: flex; align-items: center; justify-content: space-between; }
-.calendar { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
-.calendar .weekday { font-size: .75rem; text-align: center; color: var(--muted); }
+.calendar { display: grid; grid-template-columns: repeat(7, minmax(0, 40px)); justify-content: center; gap: 4px 8px; }
+.calendar .weekday { font-size: .72rem; text-align: center; color: var(--muted); }
 .calendar .day {
   aspect-ratio: 1 / 1;
   max-width: 100%;
@@ -150,7 +151,7 @@ form > .primary { margin-top: 14px; }
   border-radius: 50%;
   background: var(--day);
   color: var(--ink);
-  font-size: .95rem;
+  font-size: .9rem;
   display: flex;
   align-items: center;
   justify-content: center;

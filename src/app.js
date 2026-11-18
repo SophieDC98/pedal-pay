@@ -266,16 +266,28 @@ $('open-settings').addEventListener('click', () => {
   show('settings');
   buildFillBookmark();
 });
-$('settings-cancel').addEventListener('click', () => { showMain(); refresh(); });
-$('settings-form').addEventListener('submit', e => {
-  e.preventDefault();
-  const values = readNumbers('settings');
-  const reminderTime = readReminder();
-  if (!values || !reminderTime) return;
-  save({ ...state, ...values, reminderTime });
-  showMain();
-  refresh();
-});
+// Settings save each valid field as soon as it changes; a wrong value shows
+// its message and the last good value stays.
+function saveSettingsField(field) {
+  if (field === 'reminder') {
+    const reminderTime = readReminder();
+    if (reminderTime) save({ ...state, reminderTime });
+    return;
+  }
+  const name = field === 'km' ? 'kmPerRide' : 'ratePerKm';
+  const input = $(`settings-${field}`);
+  const error = $(`settings-${field}-error`);
+  const value = parseDecimal(input.value);
+  input.setAttribute('aria-invalid', String(value === null));
+  error.hidden = value !== null;
+  error.textContent = value === null ? 'Enter a number above 0, like 18 or 0,36' : '';
+  if (value !== null) save({ ...state, [name]: value });
+}
+for (const field of ['km', 'rate', 'reminder']) {
+  $(`settings-${field}`).addEventListener('input', () => saveSettingsField(field));
+}
+$('settings-form').addEventListener('submit', e => e.preventDefault());
+$('settings-close').addEventListener('click', () => { showMain(); refresh(); });
 
 // The notification's Yes and No buttons answer through the service worker.
 navigator.serviceWorker?.addEventListener('message', e => {

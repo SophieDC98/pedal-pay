@@ -31,8 +31,9 @@ the calendar to change it.
 
 ## Claim your rides in ERPx
 
-1. In Pedal Pay, open ⚙ and drag the **🚲 Pedal Pay fill** button to your
-   favourites bar.
+1. In Pedal Pay, open ⚙ and drag the **🚲 Fill bike days in ERPx** button to
+   your favourites bar. (Edge shows a globe next to it; bookmarks like this
+   cannot have their own icon.)
 2. Open your expense claim in ERPx and click the favourite.
 3. The first time, a small Pedal Pay window asks whether to share your rides
    with that ERPx site. Click **Allow**; it remembers this in your browser only.
@@ -48,6 +49,7 @@ panel ticks every workday instead, like the original script.
 ## Good to know
 
 - Change your km per ride, rate per km or reminder time with the ⚙ button.
+  Changes are saved as you type; close Settings with ✕.
 - Your rides are stored only in this browser, on this PC. Clearing Edge's site
   data for Pedal Pay removes them, and the sites you allowed.
 - Only the days you biked and your km per ride are ever shared, and only with
