@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Pedal Pay</title>
+  <link rel="icon" href="./icons/icon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600&display=swap">
+  <link rel="stylesheet" href="./styles.css">
+  <script type="module" src="./src/handoff.js"></script>
+</head>
+<body>
+  <header class="bar">
+    <img src="./icons/icon.svg" alt="" width="28" height="28">
+    <span class="bar-title">Pedal Pay</span>
+  </header>
+  <main>
+    <section id="handoff-wait" class="view">
+      <p class="hint">Getting your rides…</p>
+    </section>
+    <section id="handoff-ask" class="view" hidden>
+      <h1>Share your rides with <span id="handoff-host"></span>?</h1>
+      <p class="hint">Only the days you biked and your km per ride are shared, so this site can fill in your bike allowance. You're asked once per site.</p>
+      <div class="form-buttons">
+        <button id="handoff-allow" class="primary" type="button">Allow</button>
+        <button id="handoff-deny" class="secondary" type="button">Don't allow</button>
+      </div>
+    </section>
+    <section id="handoff-setup" class="view" hidden>
+      <h1>Pedal Pay isn't set up here yet</h1>
+      <p class="hint">Open Pedal Pay in this browser first and enter your km per ride. Then click the fill bookmark again.</p>
+    </section>
+    <section id="handoff-alone" class="view" hidden>
+      <h1>Nothing to do here</h1>
+      <p class="hint">This window opens from the fill bookmark on the ERPx expense page.</p>
+    </section>
+  </main>
+</body>
+</html>

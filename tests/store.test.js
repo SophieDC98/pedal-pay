@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { emptyState, loadState, saveState, setAnswer, clearAnswer, isSetUp, parseDecimal, STORAGE_KEY } from '../src/store.js';
+import { emptyState, loadState, saveState, setAnswer, clearAnswer, allowSite, isSetUp, parseDecimal, STORAGE_KEY } from '../src/store.js';
 
 const mem = (init = {}) => {
   const m = new Map(Object.entries(init));
@@ -66,4 +66,13 @@ test('clearAnswer turns a day back into a missed day without mutating', () => {
 test('the reminder time defaults to 09:00, also for older saved data', () => {
   assert.equal(emptyState().reminderTime, '09:00');
   assert.equal(loadState(mem({ 'pedal-pay': '{"version":1,"kmPerRide":18,"ratePerKm":0.36,"answers":{}}' })).reminderTime, '09:00');
+});
+
+test('allowed sites start empty and allowSite adds each origin once', () => {
+  assert.deepEqual(emptyState().allowedSites, []);
+  const a = allowSite(emptyState(), 'https://erp.example');
+  const b = allowSite(a, 'https://erp.example');
+  assert.deepEqual(b.allowedSites, ['https://erp.example']);
+  assert.deepEqual(emptyState().allowedSites, []);
+  assert.deepEqual(loadState(mem({ 'pedal-pay': '{"version":1,"answers":{}}' })).allowedSites, []);
 });

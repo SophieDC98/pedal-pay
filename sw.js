@@ -1,8 +1,9 @@
 // Keeps Pedal Pay working offline and handles the morning notification's buttons.
-const CACHE = 'pedal-pay-v1';
+const CACHE = 'pedal-pay-v2';
 const FILES = [
   './', './index.html', './styles.css', './manifest.webmanifest',
-  './src/app.js', './src/dates.js', './src/store.js', './src/stats.js',
+  './handoff.html', './src/app.js', './src/dates.js', './src/store.js', './src/stats.js',
+  './src/handoff.js', './src/fill-logic.js', './src/bookmark.js', './fill/panel.js',
   './icons/icon.svg', './icons/icon-192.png', './icons/icon-512.png',
 ];
 

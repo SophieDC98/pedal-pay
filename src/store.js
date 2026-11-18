@@ -7,7 +7,7 @@
 export const STORAGE_KEY = 'pedal-pay';
 
 export function emptyState() {
-  return { version: 1, kmPerRide: null, ratePerKm: null, reminderTime: '09:00', answers: {} };
+  return { version: 1, kmPerRide: null, ratePerKm: null, reminderTime: '09:00', allowedSites: [], answers: {} };
 }
 
 export function loadState(storage) {
@@ -16,6 +16,7 @@ export function loadState(storage) {
     if (!parsed || parsed.version !== 1) return emptyState();
     const state = { ...emptyState(), ...parsed };
     if (typeof state.answers !== 'object' || state.answers === null) state.answers = {};
+    if (!Array.isArray(state.allowedSites)) state.allowedSites = [];
     return state;
   } catch {
     return emptyState();
@@ -39,6 +40,12 @@ export function clearAnswer(state, key) {
   const answers = { ...state.answers };
   delete answers[key];
   return { ...state, answers };
+}
+
+// Sites (origins) the user let the app share their rides with.
+export function allowSite(state, origin) {
+  if (state.allowedSites.includes(origin)) return state;
+  return { ...state, allowedSites: [...state.allowedSites, origin] };
 }
 
 export function isSetUp(state) {
