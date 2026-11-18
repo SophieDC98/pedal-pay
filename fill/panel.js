@@ -4,7 +4,6 @@
 
 const PANEL_ID = 'pedal-pay-panel';
 const STYLE_ID = 'pedal-pay-style';
-const FALLBACK_KM = 18;
 const MONTH_LABEL = new Intl.DateTimeFormat('en-GB', { month: 'long', year: 'numeric' });
 const WEEKDAY_LABELS = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'];
 const LOGO = '<svg viewBox="0 0 64 64" width="24" height="24" aria-hidden="true"><rect width="64" height="64" rx="16" fill="#D4471F"/><g transform="translate(0 -7)"><g fill="none" stroke="#FFC93C" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="40" r="9"/><path d="M18 40 27 27h13l5 13M27 27l4 13H18M31 40l9-13"/></g><circle cx="46" cy="40" r="10" fill="#FFC93C"/></g></svg>';
@@ -41,7 +40,7 @@ const ERPx = {
     const dates = new Set();
     grid.getStore().each(record => {
       const raw = record.get('expenseDate');
-      if (!raw) return;
+      if (!raw || !isBikeLine(record.get('expenseType'))) return;
       const date = raw instanceof Date ? raw : new Date(raw);
       if (!Number.isNaN(date.getTime())) dates.add(toKey(date));
     });
@@ -52,6 +51,13 @@ const ERPx = {
     field?.setValue(text);
   },
 };
+
+// A line counts as a bike allowance line when its type says so. A line with no
+// readable type counts too, so an unknown ERPx field never leads to duplicates.
+function isBikeLine(type) {
+  if (type === undefined || type === null || type === '') return true;
+  return type === 'FIETSVG' || /fiets/i.test(String(type));
+}
 
 async function createBikeExpense(key, km) {
   ERPx.addExpenseLine();
@@ -205,7 +211,7 @@ function openPanel() {
 function startPanel(body, data) {
   const todayKey = window.__pedalPayToday || data?.today || toKey(new Date());
   const rides = data ? data.rides : null;
-  let km = data?.kmPerRide || FALLBACK_KM;
+  let km = data?.kmPerRide || null; // never guess someone's distance
   let month = defaultMonth(todayKey);
   let existing = new Set();
   let canAdd = true;
@@ -248,10 +254,11 @@ function startPanel(body, data) {
 
     const kmRow = el('div', { class: 'pp-row' });
     kmRow.append(el('label', { for: 'pedal-pay-km' }, 'Km per ride'));
-    const kmInput = el('input', { id: 'pedal-pay-km', inputmode: 'decimal', value: String(km).replace('.', ',') });
+    const kmInput = el('input', { id: 'pedal-pay-km', inputmode: 'decimal', placeholder: 'km', value: km ? String(km).replace('.', ',') : '' });
     kmInput.addEventListener('input', () => {
       const n = Number(kmInput.value.trim().replace(',', '.'));
-      if (n > 0) { km = n; summary(); }
+      km = n > 0 ? n : null;
+      summary();
     });
     kmRow.append(kmInput);
     body.append(kmRow);
@@ -299,10 +306,11 @@ function startPanel(body, data) {
     const sum = document.getElementById('pedal-pay-sum');
     const go = document.getElementById('pedal-pay-generate');
     if (!sum || !go) return;
-    sum.textContent = `${n} ${n === 1 ? 'day' : 'days'} · ${Math.round(n * km * 100) / 100} km`;
+    sum.textContent = `${n} ${n === 1 ? 'day' : 'days'}` + (km ? ` · ${Math.round(n * km * 100) / 100} km` : '');
     if (!canAdd) go.textContent = 'Open the expense claim first';
+    else if (!km) go.textContent = 'Enter your km per ride';
     else go.textContent = n ? `Add ${n} ${n === 1 ? 'day' : 'days'} to ERPx` : 'No days ticked';
-    go.disabled = busy || n === 0 || !canAdd;
+    go.disabled = busy || n === 0 || !canAdd || !km;
     const kmInput = document.getElementById('pedal-pay-km');
     if (kmInput) kmInput.disabled = busy;
   }
@@ -314,7 +322,7 @@ function startPanel(body, data) {
   }
 
   async function generate() {
-    if (busy || ticks.size === 0 || !canAdd) return;
+    if (busy || ticks.size === 0 || !canAdd || !km) return;
     busy = true;
     summary();
     const status = document.getElementById('pedal-pay-status');

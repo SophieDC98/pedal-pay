@@ -203,3 +203,31 @@ test('Allow cannot be clicked the instant the question appears', async () => {
   await popup.waitForSelector('#handoff-allow:not([disabled])', { timeout: 3000 });
   await context.close();
 });
+
+test('without rides from the app, km per ride starts empty and must be filled in', async () => {
+  const context = await newContext();
+  const { page, popup } = await clickBookmark(context);
+  await popup.waitForSelector('#handoff-ask:not([hidden])');
+  await popup.click('#handoff-deny');
+  await page.waitForSelector('#pedal-pay-note:not([hidden])');
+  assert.equal(await page.inputValue('#pedal-pay-km'), '');
+  assert.equal(await page.isDisabled('#pedal-pay-generate'), true);
+  assert.match(await page.textContent('#pedal-pay-generate'), /km per ride/);
+  await page.fill('#pedal-pay-km', '12,5');
+  assert.equal(await page.isDisabled('#pedal-pay-generate'), false);
+  await context.close();
+});
+
+test('only bike allowance lines (or lines without a type) mark a day as already in ERPx', async () => {
+  const context = await newContext();
+  const page = await openAllowed(context, () => {
+    window.fake.records.push({ data: { expenseDate: new Date(2026, 10, 16), expenseType: 'TREIN' } });
+    window.fake.records.push({ data: { expenseDate: new Date(2026, 10, 17) } });
+    window.fake.records.push({ data: { expenseDate: new Date(2026, 10, 12), expenseType: 'Fietsvergoeding (woon-werkverkeer)' } });
+  });
+  await page.waitForSelector('#pedal-pay-panel [data-key="2026-11-17"].done');
+  assert.equal(await page.isDisabled('#pedal-pay-panel [data-key="2026-11-12"]'), true);
+  assert.equal(await page.isDisabled('#pedal-pay-panel [data-key="2026-11-16"]'), false);
+  assert.deepEqual(await ticked(page), ['2026-11-16']);
+  await context.close();
+});

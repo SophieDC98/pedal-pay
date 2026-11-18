@@ -19,9 +19,17 @@ scripts from elsewhere. The app builds the bookmark link from its own source
 files when it is offered, so there is still no build step.
 
 The panel ticks the rides of the chosen month. Allowance lines are created
-only after the user clicks generate, and days that already have a line are
-shown as done and skipped. Without app data, the panel ticks every workday,
-as the original script does.
+only after the user clicks generate, and days that already have a bike
+allowance line are shown as done and skipped. A train or parking line on the
+same day does not count; a line whose type cannot be read does, so an
+unexpected ERPx field never causes duplicates. If the lines in ERPx cannot be
+read at all, nothing can be added.
+
+Without app data (the user said no, the app is not set up, or the small
+window could not open), the panel ticks every workday, as the original
+script does, but leaves the km per ride empty until the user fills it in, so
+nobody claims someone else's distance. The panel waits up to two minutes for
+an answer in the small window; closing it falls back at once.
 
 The panel and the ERPx automation come from a colleague's console script,
 reused with their consent and credited in the README.
