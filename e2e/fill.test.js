@@ -242,3 +242,22 @@ test('when ERPx fills in today\'s date after the category, the right date is put
   assert.deepEqual(await lines(page), ['4:FIETSVG:18', '5:FIETSVG:18', '6:FIETSVG:18']);
   await context.close();
 });
+
+test('an open app window saving its own changes does not forget an allowed site', async () => {
+  const context = await newContext();
+  const app = await context.newPage();
+  await app.goto(appBase);
+  await app.waitForSelector('#main:not([hidden])');
+  const page = await clickAndAllow(context);
+  await doneWith(page, '2 added');
+  await page.waitForSelector('#pedal-pay-panel', { state: 'detached', timeout: 8000 });
+  // Back in the app, which was open all along: mark a day.
+  await app.bringToFront();
+  await app.click('#calendar [data-key="2026-11-02"]');
+  await page.bringToFront();
+  const { popup } = await clickBookmark(context);
+  await page.waitForSelector('#pedal-pay-message');
+  await doneWith(page, '1 added');
+  assert.ok(!popup || popup.isClosed() || await popup.isHidden('#handoff-ask').catch(() => true), 'asked again');
+  await context.close();
+});

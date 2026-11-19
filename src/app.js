@@ -1,7 +1,7 @@
 // Pedal Pay's screens. The only module that touches the page, storage and notifications.
 
 import { toKey, fromKey, monthDays } from './dates.js';
-import { loadState, saveState, setAnswer, clearAnswer, isSetUp, parseDecimal } from './store.js';
+import { STORAGE_KEY, loadState, saveState, setAnswer, clearAnswer, isSetUp, parseDecimal } from './store.js';
 import { totals, streak, promptDue, needsPrompt, formatEuros } from './stats.js';
 import { bookmarkUrl } from './bookmark.js';
 
@@ -49,7 +49,9 @@ function show(view) {
 // Keeps the state in the window even when the browser refuses to store it,
 // and tells the user that it will not be kept.
 function save(next) {
-  state = next;
+  // The fill bookmark's small window saves the allowed sites; never overwrite
+  // them with this window's older copy.
+  state = { ...next, allowedSites: loadState(storage).allowedSites };
   $('storage-warning').hidden = saveState(storage, state);
 }
 
@@ -308,6 +310,12 @@ document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible') refresh();
 });
 window.addEventListener('focus', refresh);
+// Another window (the fill bookmark's small window) changed the data: use it.
+window.addEventListener('storage', e => {
+  if (e.key !== STORAGE_KEY) return;
+  state = loadState(storage);
+  if (!$('main').hidden) renderMain();
+});
 setInterval(refresh, 60 * 1000);
 
 if (isSetUp(state)) { showMain(); refresh(); } else show('setup');
