@@ -373,3 +373,35 @@ test('the offline helper always asks the server for the newest files', async () 
   assert.match(sw, /cache: 'no-cache'/);
   assert.match(sw, /cache: 'reload'/);
 });
+
+async function appWithStorage(granted) {
+  const context = await browser.newContext({ serviceWorkers: 'block' });
+  await context.addInitScript(([s, ok]) => {
+    localStorage.setItem('pedal-pay-today', '2026-11-17');
+    localStorage.setItem('pedal-pay-now', '09:30');
+    localStorage.setItem('pedal-pay', s);
+    window.__persistCalls = 0;
+    let kept = false;
+    Object.defineProperty(navigator, 'storage', { value: {
+      persisted: async () => kept,
+      persist: async () => { window.__persistCalls++; kept = ok; return ok; },
+    } });
+  }, [setUpState({ '2026-11-17': true }), granted]);
+  const page = await context.newPage();
+  await page.goto(base);
+  await visible(page, '#main');
+  return { page, context };
+}
+
+test('the app asks Edge to keep its data and Settings says whether it will', async () => {
+  const { page, context } = await appWithStorage(true);
+  await page.waitForFunction(() => window.__persistCalls === 1);
+  await page.click('#open-settings');
+  await page.waitForSelector('#storage-kept:has-text("Edge keeps your rides")');
+  await context.close();
+
+  const refused = await appWithStorage(false);
+  await refused.page.click('#open-settings');
+  await refused.page.waitForSelector('#storage-kept:has-text("may clear")');
+  await refused.context.close();
+});

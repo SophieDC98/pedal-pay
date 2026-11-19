@@ -220,6 +220,25 @@ async function buildFillBookmark() {
 }
 on('fill-bookmark-link', 'click', e => e.preventDefault());
 
+// Asks Edge to keep the app's data even when disk space runs low. Edge decides
+// by itself and asks nothing; installed apps are usually allowed. Never throws.
+async function keepStorage() {
+  try {
+    if (!navigator.storage?.persist) return false;
+    if (await navigator.storage.persisted()) return true;
+    return await navigator.storage.persist();
+  } catch {
+    return false;
+  }
+}
+
+async function showStorageKept() {
+  const kept = await keepStorage();
+  $('storage-kept').textContent = kept
+    ? 'Edge keeps your rides, also when disk space runs low.'
+    : 'Edge may clear your rides when disk space runs low. Installing Pedal Pay as an app usually prevents that.';
+}
+
 // Asked once, from the Start button, so the browser accepts the request.
 function askNotificationPermission() {
   try {
@@ -269,6 +288,7 @@ on('open-settings', 'click', () => {
   }
   show('settings');
   buildFillBookmark();
+  showStorageKept();
 });
 // Settings save each valid field as soon as it changes; a wrong value shows
 // its message and the last good value stays.
@@ -314,4 +334,5 @@ window.addEventListener('storage', e => {
 });
 setInterval(refresh, 60 * 1000);
 
+keepStorage();
 if (isSetUp(state)) { showMain(); refresh(); } else show('setup');
