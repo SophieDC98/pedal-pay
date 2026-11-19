@@ -31,7 +31,8 @@ The distance claimed for one ride, the same every day for one user.
 _Avoid_: distance, kilometres
 
 **Rate per km**:
-The euros the employer pays for one km biked, set by each user.
+The euros the employer pays for one km biked: 0.36 until the fill bookmark
+reads the real rate from the bike allowance lines in ERPx.
 _Avoid_: tariff, price
 
 **Allowance line**:

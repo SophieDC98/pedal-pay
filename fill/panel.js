@@ -53,6 +53,15 @@ const ERPx = {
     });
     return dates;
   },
+  // The km and amount of each bike allowance line, to work out the rate per km.
+  bikeLineAmounts() {
+    const lines = [];
+    Ext.ComponentQuery.query('grid')[0]?.getStore().each(record => {
+      if (!isBikeLine(record.get('expenseType'))) return;
+      lines.push({ quantity: record.get('quantity'), amount: record.get('amountValue') ?? record.get('localValue') });
+    });
+    return lines;
+  },
   setTravelPurpose(text) {
     const field = Ext.ComponentQuery.query('textfield').find(x => x.u4Id === 'travelPurpose');
     field?.setValue(text);
@@ -198,7 +207,11 @@ function requestRides() {
       if (e.origin !== appOrigin || (win && e.source !== win)) return;
       const data = e.data || {};
       if (data.type === 'pedal-pay-ready') {
-        e.source.postMessage({ type: 'pedal-pay-request' }, appOrigin);
+        // Along with the request goes the rate per km ERPx pays, so the app's
+        // amounts match; the app keeps it only for an allowed site.
+        let ratePerKm = null;
+        try { ratePerKm = rateFromLines(ERPx.bikeLineAmounts()); } catch { ratePerKm = null; }
+        e.source.postMessage({ type: 'pedal-pay-request', ratePerKm }, appOrigin);
       } else if (data.type === 'pedal-pay-rides' && Array.isArray(data.rides)) {
         finish({
           rides: data.rides.filter(k => KEY.test(k)),

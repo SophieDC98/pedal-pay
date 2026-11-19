@@ -22,6 +22,17 @@ export function planMonth(rides, bikeDays, year, month0) {
   return { add, remove };
 }
 
+// The rate per km ERPx pays, worked out from bike lines' km and amount: the
+// middle one of the plausible rates (5 cents to 2 euros), or null.
+export function rateFromLines(lines) {
+  const rates = lines
+    .map(l => Number(l.amount) / Number(l.quantity))
+    .filter(r => Number.isFinite(r) && r >= 0.05 && r <= 2)
+    .sort((a, b) => a - b);
+  if (!rates.length) return null;
+  return Math.round(rates[Math.floor((rates.length - 1) / 2)] * 10000) / 10000;
+}
+
 export function travelPurpose(year, month0) {
   return `Fietsvergoeding ${MONTHS_NL[month0]} ${year}`;
 }

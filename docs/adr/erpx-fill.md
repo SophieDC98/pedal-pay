@@ -13,7 +13,11 @@ works after a short moment, so a quick double click elsewhere cannot land on
 it. The ERPx address is never written into the repository or the public
 site, because it names the employer; a GitHub secret was rejected for the
 same reason, since anything it put into the published files would be public.
-Only ride dates and the km per ride are shared.
+Only ride dates and the km per ride are shared. In the other direction the
+bookmark sends the rate per km it works out from the bike allowance lines in
+ERPx (their amount divided by their km); the app keeps it for an allowed site,
+so its amounts match what ERPx pays. Until then the app uses 0.36, and setup
+does not ask for it.
 
 The app is the only place where days are checked. The bookmark takes one
 month, the previous one before the 15th and the current one from the 15th,

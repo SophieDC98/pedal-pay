@@ -11,8 +11,9 @@ can fix any day. When you claim, the fill bookmark puts your rides into ERPx.
 1. Open https://sophiedc98.github.io/pedal-pay/ in Microsoft Edge.
 2. Click the **App available** icon in the address bar (or **⋯ → Apps →
    Install this site as an app**) and choose **Install**.
-3. Enter your **km per ride** and your **rate per km** (for example `18` and
-   `0,36`), press **Start**, and allow notifications.
+3. Enter your **km per ride** (for example `18`), press **Start**, and allow
+   notifications. The rate per km starts at €0.36; the fill bookmark later
+   reads the real one from ERPx.
 
 ## Let it ask you every morning
 

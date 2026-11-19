@@ -24,14 +24,11 @@
     <p id="storage-warning" class="warning" role="alert" hidden>This browser is not letting Pedal Pay save. Your rides will not be kept after you close it.</p>
     <section id="setup" class="view" hidden>
       <h1>Welcome to Pedal Pay</h1>
-      <p class="hint">Tell us your commute once. You can change it later in Settings.</p>
+      <p class="hint">How far is one ride to work? You can change it later in Settings.</p>
       <form id="setup-form" novalidate>
         <label for="setup-km">Km per ride</label>
         <input id="setup-km" inputmode="decimal" autocomplete="off" placeholder="18">
         <p class="field-error" id="setup-km-error" hidden></p>
-        <label for="setup-rate">Rate per km (€)</label>
-        <input id="setup-rate" inputmode="decimal" autocomplete="off" placeholder="0,36">
-        <p class="field-error" id="setup-rate-error" hidden></p>
         <button id="setup-save" class="primary" type="submit">Start</button>
       </form>
     </section>

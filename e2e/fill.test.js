@@ -261,3 +261,24 @@ test('an open app window saving its own changes does not forget an allowed site'
   assert.ok(!popup || popup.isClosed() || await popup.isHidden('#handoff-ask').catch(() => true), 'asked again');
   await context.close();
 });
+
+test('the rate per km is read from the bike lines in ERPx and saved in the app', async () => {
+  const context = await newContext();
+  const page = await clickAndAllow(context);
+  await doneWith(page, '2 added');
+  const p = await context.newPage();
+  await p.goto(appBase + 'handoff.html');
+  assert.equal(await p.evaluate(() => JSON.parse(localStorage.getItem('pedal-pay')).ratePerKm), 0.38);
+  await context.close();
+});
+
+test('a site that is not allowed cannot change the rate', async () => {
+  const context = await newContext();
+  const { popup } = await clickBookmark(context);
+  await popup.waitForSelector('#handoff-ask:not([hidden])');
+  await popup.click('#handoff-deny');
+  const p = await context.newPage();
+  await p.goto(appBase + 'handoff.html');
+  assert.equal(await p.evaluate(() => JSON.parse(localStorage.getItem('pedal-pay')).ratePerKm), 0.36);
+  await context.close();
+});

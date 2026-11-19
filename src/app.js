@@ -158,19 +158,15 @@ function moveMonth(delta) {
   renderMain();
 }
 
-// Reads the two number fields of a form; marks the bad ones.
-function readNumbers(prefix) {
-  const result = {};
-  for (const [field, name] of [['km', 'kmPerRide'], ['rate', 'ratePerKm']]) {
-    const input = $(`${prefix}-${field}`);
-    const error = $(`${prefix}-${field}-error`);
-    const value = parseDecimal(input.value);
-    input.setAttribute('aria-invalid', String(value === null));
-    error.hidden = value !== null;
-    error.textContent = value === null ? 'Enter a number above 0, like 18 or 0,36' : '';
-    result[name] = value;
-  }
-  return result.kmPerRide !== null && result.ratePerKm !== null ? result : null;
+// Reads the km per ride from first-run setup; marks it when it is wrong.
+function readSetupKm() {
+  const input = $('setup-km');
+  const error = $('setup-km-error');
+  const value = parseDecimal(input.value);
+  input.setAttribute('aria-invalid', String(value === null));
+  error.hidden = value !== null;
+  error.textContent = value === null ? 'Enter a number above 0, like 18 or 12,5' : '';
+  return value;
 }
 
 function readReminder() {
@@ -235,9 +231,9 @@ function askNotificationPermission() {
 
 on('setup-form', 'submit', e => {
   e.preventDefault();
-  const values = readNumbers('setup');
-  if (!values) return;
-  save({ ...state, ...values });
+  const kmPerRide = readSetupKm();
+  if (kmPerRide === null) return;
+  save({ ...state, kmPerRide });
   askNotificationPermission();
   showMain();
   refresh();

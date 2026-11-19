@@ -53,8 +53,8 @@ const visible = (page, sel) => page.waitForSelector(`${sel}:not([hidden])`, { ti
 test('first run, prompt, main screen', async () => {
   const { page, context, errors } = await openApp('2026-11-17');
   await visible(page, '#setup');
+  assert.equal(await page.locator('#setup-rate').count(), 0);
   await page.fill('#setup-km', '18');
-  await page.fill('#setup-rate', '0,36');
   await page.click('#setup-save');
   await visible(page, '#prompt');
   await page.click('#prompt-yes');
@@ -75,7 +75,6 @@ test('invalid setup input is refused', async () => {
   const { page, context } = await openApp('2026-11-17');
   await visible(page, '#setup');
   await page.fill('#setup-km', 'abc');
-  await page.fill('#setup-rate', '0,36');
   await page.click('#setup-save');
   assert.equal(await page.getAttribute('#setup-km', 'aria-invalid'), 'true');
   assert.equal(await page.isHidden('#setup'), false);
@@ -234,7 +233,6 @@ test('when the browser refuses to save, the user is told and rides are kept in t
   await page.goto(base);
   await visible(page, '#setup');
   await page.fill('#setup-km', '18');
-  await page.fill('#setup-rate', '0,36');
   await page.click('#setup-save');
   await visible(page, '#storage-warning');
   await visible(page, '#prompt');

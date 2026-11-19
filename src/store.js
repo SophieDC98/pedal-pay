@@ -5,9 +5,11 @@
 //          key absent               a missed day
 
 export const STORAGE_KEY = 'pedal-pay';
+// The rate per km until ERPx tells the app the real one.
+export const DEFAULT_RATE = 0.36;
 
 export function emptyState() {
-  return { version: 1, kmPerRide: null, ratePerKm: null, reminderTime: '09:00', allowedSites: [], answers: {} };
+  return { version: 1, kmPerRide: null, ratePerKm: DEFAULT_RATE, reminderTime: '09:00', allowedSites: [], answers: {} };
 }
 
 export function loadState(storage) {

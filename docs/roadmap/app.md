@@ -12,9 +12,9 @@ The installable app, the first thing colleagues use every day.
   apart. Fixing a wrong answer is done here; there is no separate undo.
 - The morning prompt is a strip over the main screen at the reminder time,
   plus a notification. After an answer it says "Saved" and slides away.
-- The first run asks for the km per ride and the rate per km, then asks to
-  allow notifications. Both can be changed later in Settings, together with
-  the reminder time, 09:00 by default.
+- The first run asks only for the km per ride, then asks to allow
+  notifications. The rate per km starts at 0.36. Both can be changed later in
+  Settings, together with the reminder time, 09:00 by default.
 - The README explains how to let Edge start the app at Windows sign-in.
 
 Depends on: nothing.

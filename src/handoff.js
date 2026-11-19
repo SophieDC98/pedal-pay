@@ -28,7 +28,13 @@ if (!window.opener) {
     answered = true;
     const origin = e.origin;
     const send = msg => { try { window.opener.postMessage(msg, origin); } catch { /* the page went away */ } };
+    const rate = Number(e.data.ratePerKm);
     const share = () => {
+      // ERPx's rate per km replaces the app's, for an allowed site only.
+      if (rate >= 0.05 && rate <= 2) {
+        state = { ...loadState(storage), ratePerKm: rate };
+        saveState(storage, state);
+      }
       send({ type: 'pedal-pay-rides', rides: rides(), kmPerRide: state.kmPerRide, today: today() });
       window.close();
     };

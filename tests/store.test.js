@@ -76,3 +76,8 @@ test('allowed sites start empty and allowSite adds each origin once', () => {
   assert.deepEqual(emptyState().allowedSites, []);
   assert.deepEqual(loadState(mem({ 'pedal-pay': '{"version":1,"answers":{}}' })).allowedSites, []);
 });
+
+test('the rate per km starts at 0.36 and only km per ride is needed to start', () => {
+  assert.equal(emptyState().ratePerKm, 0.36);
+  assert.equal(isSetUp({ ...emptyState(), kmPerRide: 18 }), true);
+});
