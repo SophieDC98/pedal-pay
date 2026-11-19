@@ -255,7 +255,7 @@ const STYLE = `
 #${PANEL_ID} .pp-road.pp-still .pp-wheel{animation:none}
 @keyframes pp-spin{to{transform:rotate(360deg)}}
 #${PANEL_ID} .pp-km{display:flex;align-items:baseline;justify-content:center;gap:2px;margin:0;white-space:pre}
-#${PANEL_ID} .pp-km b{font-size:34px;line-height:1;font-weight:600;color:var(--pp-brand)}
+#${PANEL_ID} .pp-km b{font-size:14px;font-weight:600;color:var(--pp-brand)}
 #${PANEL_ID} .pp-km small{font-size:14px;color:var(--pp-muted)}
 #${PANEL_ID} .pp-row{display:flex;align-items:center;justify-content:space-between;gap:8px;color:var(--pp-muted);font-size:13px}
 #${PANEL_ID} .pp-stop{padding:6px 14px;border-radius:999px;border:2px solid var(--pp-brand);color:var(--pp-brand);font-weight:600}
