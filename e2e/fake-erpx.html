@@ -16,6 +16,7 @@
     const withGet = r => { r.get = r.get || (k => r.data[k]); return r; };
     const store = { each(fn) { records.slice().forEach(r => fn(withGet(r))); } };
     const grid = {
+      u4Id: 'expenseLinesGrid',
       getStore: () => store,
       getSelectionModel: () => ({ select(r) { selected = [r]; }, getSelection: () => selected }),
       editingPlugin: {
@@ -27,6 +28,9 @@
         },
       },
     };
+    // The claim summary on an existing claim: one row, no line editing.
+    const overviewRow = { data: { expenseDate: new Date(2026, 10, 2), description: 'Kosten & Reisaanvragen' } };
+    const overview = { u4Id: 'expenseOverviewPaneldetails', getStore: () => ({ each(fn) { fn(withGet(overviewRow)); } }) };
     // The confirmation ERPx asks after "Kosten verwijderen".
     const yesButton = { itemId: 'yes', text: 'Ja', isVisible: () => confirming, el: { dom: { click() {
       if (!confirming) return;
@@ -56,6 +60,8 @@
     const purpose = { u4Id: 'travelPurpose', value: '', setValue(v) { this.value = v; } };
     window.Ext = { ComponentQuery: { query(sel) {
       if (sel === 'grid' && window.fake.noGrid) return [];
+      // An existing claim shows its summary table before the expense lines.
+      if (sel === 'grid' && window.fake.existingClaim) return [overview, grid];
       return ({ grid: [grid], combobox: [combo], datefield: [datefield], numberfield: [numberfield], textfield: [purpose], button: [yesButton] })[sel] || [];
     } } };
     document.querySelector('[data-u4id="addExpenseLine"]').addEventListener('click', () => {
@@ -69,7 +75,7 @@
     });
     // Deletes the whole claim. The panel must never press it.
     document.querySelector('[data-u4id="delete"]').addEventListener('click', () => { records.length = 0; window.fake.claimDeleted = true; });
-    window.fake = { records, purpose, failOnDay: null, noGrid: false, noConfirm: false, claimDeleted: false, delay: 80, defaultsOnType: false };
+    window.fake = { records, purpose, failOnDay: null, noGrid: false, noConfirm: false, claimDeleted: false, delay: 80, defaultsOnType: false, existingClaim: false };
   </script>
 </body>
 </html>

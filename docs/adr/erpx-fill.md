@@ -49,7 +49,9 @@ from elsewhere. The app builds the bookmark link from its own source files
 when it is offered, so there is still no build step.
 
 The ERPx automation comes from a colleague's console script, reused with
-their consent and credited in the README. Where that script paused a fixed
+their consent and credited in the README. Where that script took the first
+table on the page, the bookmark picks the expense lines table by its name
+(expenseLinesGrid): an existing claim shows its summary table first. Where that script paused a fixed
 1.8 seconds per day, the bookmark waits until ERPx is ready for each step and
 checks the line was saved with its date, so it is as fast as ERPx allows and
 stops rather than leave a half-filled line. Choosing the category makes ERPx

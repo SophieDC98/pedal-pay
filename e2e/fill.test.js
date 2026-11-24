@@ -282,3 +282,11 @@ test('a site that is not allowed cannot change the rate', async () => {
   assert.equal(await p.evaluate(() => JSON.parse(localStorage.getItem('pedal-pay')).ratePerKm), 0.36);
   await context.close();
 });
+
+test('on an existing claim with a summary table first, the expense lines are still used', async () => {
+  const context = await newContext();
+  const page = await clickAndAllow(context, () => { window.fake.existingClaim = true; window.fake.defaultsOnType = true; });
+  await doneWith(page, '2 added');
+  assert.deepEqual(await lines(page), ['3:FIETSVG:18', '16:FIETSVG:18', '17:FIETSVG:18']);
+  await context.close();
+});

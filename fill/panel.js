@@ -21,6 +21,13 @@ const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 // ERPx (from the colleague's script)
 /////////////////////////////////////////////////////////////
 
+// The table of expense lines. An existing claim shows its summary table
+// (expenseOverviewPaneldetails) first, so pick the lines table by name.
+function expenseGrid() {
+  const grids = Ext.ComponentQuery.query('grid');
+  return grids.find(g => g.u4Id === 'expenseLinesGrid') || grids[0];
+}
+
 const ERPx = {
   addExpenseLine() {
     document.querySelector('[data-u4id="addExpenseLine"]').click();
@@ -38,11 +45,11 @@ const ERPx = {
     editor.triggerBlur?.();
   },
   commit() {
-    Ext.ComponentQuery.query('grid')[0].editingPlugin?.completeEdit();
+    expenseGrid().editingPlugin?.completeEdit();
   },
   // Throws when the expense grid is not there; skips a line it cannot read.
   existingDates() {
-    const grid = Ext.ComponentQuery.query('grid')[0];
+    const grid = expenseGrid();
     if (!grid) throw new Error('no expense grid');
     const dates = new Set();
     grid.getStore().each(record => {
@@ -56,7 +63,7 @@ const ERPx = {
   // The km and amount of each bike allowance line, to work out the rate per km.
   bikeLineAmounts() {
     const lines = [];
-    Ext.ComponentQuery.query('grid')[0]?.getStore().each(record => {
+    expenseGrid()?.getStore().each(record => {
       if (!isBikeLine(record.get('expenseType'))) return;
       lines.push({ quantity: record.get('quantity'), amount: record.get('amountValue') ?? record.get('localValue') });
     });
@@ -79,7 +86,7 @@ function isBikeLine(type) {
 // "Kosten verwijderen" (u4Id deleteExpenseLine) and confirm. Never use the
 // button with u4Id "delete": that one deletes the whole expense claim.
 async function removeBikeLine(key) {
-  const grid = Ext.ComponentQuery.query('grid')[0];
+  const grid = expenseGrid();
   const store = grid.getStore();
   let target = null;
   store.each(record => {
@@ -127,7 +134,7 @@ function sameDay(value, key) {
 }
 function hasBikeLine(key) {
   let found = false;
-  Ext.ComponentQuery.query('grid')[0].getStore().each(r => {
+  expenseGrid().getStore().each(r => {
     if (sameDay(r.get('expenseDate'), key) && isBikeLine(r.get('expenseType'))) found = true;
   });
   return found;
@@ -158,7 +165,7 @@ async function setAndHold(set, holds, what, holdMs, timeoutMs = 10000) {
 // Adds one bike allowance line, waiting for ERPx after every step, then
 // checks the line was saved with this date.
 async function createBikeExpense(key, km) {
-  const grid = Ext.ComponentQuery.query('grid')[0];
+  const grid = expenseGrid();
   ERPx.addExpenseLine();
   await waitUntil(() => isShown(editorField('combobox', 'expenseType')) && grid.editingPlugin?.editing !== false, 'open a new line');
   await setAndHold(
