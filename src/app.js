@@ -3,7 +3,8 @@
 import { toKey, fromKey, monthDays } from './dates.js';
 import { STORAGE_KEY, loadState, saveState, setAnswer, clearAnswer, isSetUp, parseDecimal } from './store.js';
 import { totals, streak, promptDue, needsPrompt, formatEuros } from './stats.js';
-import { bookmarkUrl } from './bookmark.js';
+import { bookmarkUrl, sourceHash, fetchBookmarkSources } from './bookmark.js';
+import { VERSION } from './version.js';
 
 const $ = id => document.getElementById(id);
 // Binds a handler, skipping an element that an older cached page lacks, so a
@@ -205,14 +206,13 @@ async function closeNotification() {
 // The fill bookmark is built from the app's own files, for this app's address.
 async function buildFillBookmark() {
   const link = $('fill-bookmark-link');
-  if (link.href.startsWith('javascript:')) return;
+  $('app-version').textContent = `Version ${VERSION}`;
   try {
-    const files = ['./src/dates.js', './src/fill-logic.js', './fill/panel.js'];
-    const sources = await Promise.all(files.map(f => fetch(f).then(r => {
-      if (!r.ok) throw new Error(f);
-      return r.text();
-    })));
-    link.href = bookmarkUrl(sources, new URL('./', location.href).href);
+    const sources = await fetchBookmarkSources();
+    const build = await sourceHash(sources);
+    link.href = bookmarkUrl(sources, new URL('./', location.href).href, build);
+    link.textContent = '🚲 Fill bike days in ERPx';
+    $('app-version').textContent = `Version ${VERSION} · ${build}`;
   } catch {
     link.removeAttribute('href');
     link.textContent = 'The fill bookmark could not be built offline. Try again when online.';

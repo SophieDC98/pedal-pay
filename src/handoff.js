@@ -3,13 +3,14 @@
 
 import { toKey } from './dates.js';
 import { loadState, saveState, allowSite, isSetUp } from './store.js';
+import { sourceHash, fetchBookmarkSources } from './bookmark.js';
 
 const $ = id => document.getElementById(id);
 const storage = (() => { try { return window.localStorage; } catch { return null; } })();
 let state = loadState(storage);
 
 function show(id) {
-  for (const v of ['handoff-wait', 'handoff-ask', 'handoff-setup', 'handoff-alone']) $(v).hidden = v !== id;
+  for (const v of ['handoff-wait', 'handoff-ask', 'handoff-setup', 'handoff-outdated', 'handoff-alone']) $(v).hidden = v !== id;
 }
 
 // The browser tests pin the date with 'pedal-pay-today'.
@@ -23,11 +24,21 @@ if (!window.opener) {
   show('handoff-alone');
 } else {
   let answered = false;
-  window.addEventListener('message', e => {
+  // The fingerprint of the current bookmark code; null when it cannot be
+  // worked out (offline), and then the check is skipped.
+  const currentBuild = fetchBookmarkSources().then(sourceHash).catch(() => null);
+  window.addEventListener('message', async e => {
     if (answered || e.source !== window.opener || e.data?.type !== 'pedal-pay-request') return;
     answered = true;
     const origin = e.origin;
     const send = msg => { try { window.opener.postMessage(msg, origin); } catch { /* the page went away */ } };
+    // An outdated bookmark carries old code: it fills nothing.
+    const build = await currentBuild;
+    if (build && e.data.build !== build) {
+      send({ type: 'pedal-pay-refused', reason: 'outdated' });
+      show('handoff-outdated');
+      return;
+    }
     const rate = Number(e.data.ratePerKm);
     const share = () => {
       // ERPx's rate per km replaces the app's, for an allowed site only.

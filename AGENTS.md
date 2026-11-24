@@ -47,3 +47,6 @@ it built is marked `built`, any choice made on the way is in its decision, and
 - `npm test` runs the unit tests.
 - `npm run test:e2e` runs the browser tests with Playwright.
 - `node scripts/make-icons.mjs` re-renders the PNG icons from `icons/icon.svg`.
+
+Set `VERSION` in `src/version.js` to the date of every change to the app, as
+`YYYY.MM.DD`; `npm test` fails when the latest change is newer.

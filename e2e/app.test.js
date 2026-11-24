@@ -405,3 +405,12 @@ test('the app asks Edge to keep its data and Settings says whether it will', asy
   await refused.page.waitForSelector('#storage-kept:has-text("may clear")');
   await refused.context.close();
 });
+
+test('Settings shows the version and the bookmark fingerprint', async () => {
+  const { page, context } = await openApp('2026-11-17', { 'pedal-pay': setUpState({ '2026-11-17': true }) });
+  await visible(page, '#main');
+  await page.click('#open-settings');
+  await page.waitForSelector('#app-version:has-text("·")');
+  assert.match(await page.textContent('#app-version'), /^Version \d{4}\.\d{2}\.\d{2} · [0-9a-f]{8}$/);
+  await context.close();
+});

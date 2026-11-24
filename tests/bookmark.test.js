@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { bundle, bookmarkUrl } from '../src/bookmark.js';
+import { bundle, bookmarkUrl, sourceHash } from '../src/bookmark.js';
 
 const a = "import { x } from './x.js';\nexport function one() { return 1; }\nexport const TWO = 2;\n";
 const b = "const three = one() + TWO;\nwindow.__three = three;\n";
@@ -22,4 +22,16 @@ test('bookmarkUrl is a javascript: URL that carries the app address and parses',
   const w = {};
   new Function('window', code)(w);
   assert.equal(w.__three, 3);
+});
+
+test('sourceHash is a short, stable fingerprint of the bookmark code', async () => {
+  const one = await sourceHash([a, b]);
+  assert.match(one, /^[0-9a-f]{8}$/);
+  assert.equal(await sourceHash([a, b]), one);
+  assert.notEqual(await sourceHash([a, b + '\n// changed']), one);
+});
+
+test('bookmarkUrl carries the fingerprint', () => {
+  const code = decodeURIComponent(bookmarkUrl([a, b], 'https://example.test/pedal-pay/', 'abcd1234').slice('javascript:'.length));
+  assert.match(code, /const PEDAL_PAY_BUILD = "abcd1234";/);
 });

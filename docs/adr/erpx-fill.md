@@ -46,7 +46,11 @@ before additions.
 
 The bookmark carries all its code, because ERPx may refuse to load scripts
 from elsewhere. The app builds the bookmark link from its own source files
-when it is offered, so there is still no build step.
+when it is offered, so there is still no build step. A bookmark dragged
+earlier keeps the code it was made with, so the app stamps each bookmark with
+a short fingerprint of that code. The small window compares it with the
+current code; an outdated bookmark fills nothing and is told to be dragged
+again, because old bookmark code is what broke ERPx filling before.
 
 The ERPx automation comes from a colleague's console script, reused with
 their consent and credited in the README. Where that script took the first

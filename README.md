@@ -52,6 +52,10 @@ popup explains what to do and changes nothing.
 
 ## Good to know
 
+- ⚙ Settings shows the app's version, for example `Version 2026.11.24 ·
+  a1b2c3d4`. The second part identifies the fill bookmark's code.
+- After an update, an old fill bookmark says it is out of date: drag it again
+  from ⚙ Settings and delete the old one.
 - Change your km per ride, rate per km or reminder time with the ⚙ button.
   Changes are saved as you type; close Settings with ✕.
 - Your rides are stored only in this browser, on this PC. Clearing Edge's site

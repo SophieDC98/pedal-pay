@@ -218,7 +218,7 @@ function requestRides() {
         // amounts match; the app keeps it only for an allowed site.
         let ratePerKm = null;
         try { ratePerKm = rateFromLines(ERPx.bikeLineAmounts()); } catch { ratePerKm = null; }
-        e.source.postMessage({ type: 'pedal-pay-request', ratePerKm }, appOrigin);
+        e.source.postMessage({ type: 'pedal-pay-request', ratePerKm, build: PEDAL_PAY_BUILD }, appOrigin);
       } else if (data.type === 'pedal-pay-rides' && Array.isArray(data.rides)) {
         finish({
           rides: data.rides.filter(k => KEY.test(k)),
@@ -226,7 +226,7 @@ function requestRides() {
           today: KEY.test(data.today) ? data.today : null,
         });
       } else if (data.type === 'pedal-pay-refused') {
-        finish({ refused: data.reason === 'not-set-up' ? 'not-set-up' : 'refused' });
+        finish({ refused: ['not-set-up', 'outdated'].includes(data.reason) ? data.reason : 'refused' });
       }
     }
     window.addEventListener('message', onMessage);
@@ -245,6 +245,7 @@ function requestRides() {
 const WHY_NOT = {
   'refused': 'You chose not to share your Pedal Pay rides with this site. To fill ERPx, click the bookmark again and choose Allow.',
   'not-set-up': "Pedal Pay isn't set up in this browser yet. Open Pedal Pay, enter your km per ride, then click the bookmark again.",
+  'outdated': 'This bookmark is out of date. Open Pedal Pay, go to ⚙ Settings and drag the fill bookmark to your favourites bar again.',
   'no-answer': "Pedal Pay's small window could not open or did not answer. Allow pop-ups for this site, then click the bookmark again.",
 };
 

@@ -5,7 +5,7 @@ import { createRequire } from 'node:module';
 import { createServer } from 'node:net';
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
-import { bookmarkUrl } from '../src/bookmark.js';
+import { bookmarkUrl, sourceHash, BOOKMARK_FILES } from '../src/bookmark.js';
 
 const require = createRequire(import.meta.url);
 const { chromium } = require('playwright');
@@ -13,7 +13,7 @@ const root = fileURLToPath(new URL('..', import.meta.url));
 
 // The app and the fake ERPx share one server but are two sites:
 // http://localhost:PORT/ and http://127.0.0.1:PORT/.
-let server, browser, appBase, erpBase, bookmarkCode;
+let server, browser, appBase, erpBase, bookmarkCode, oldBookmarkCode;
 
 const freePort = () => new Promise(resolve => {
   const s = createServer().listen(0, () => { const { port } = s.address(); s.close(() => resolve(port)); });
@@ -27,9 +27,9 @@ before(async () => {
   for (let i = 0; i < 50; i++) {
     try { await fetch(appBase); break; } catch { await new Promise(r => setTimeout(r, 100)); }
   }
-  const sources = await Promise.all(['src/dates.js', 'src/fill-logic.js', 'fill/panel.js']
-    .map(f => readFile(new URL(`../${f}`, import.meta.url), 'utf8')));
-  bookmarkCode = decodeURIComponent(bookmarkUrl(sources, appBase).slice('javascript:'.length));
+  const sources = await Promise.all(BOOKMARK_FILES.map(f => readFile(new URL(`../${f}`, import.meta.url), 'utf8')));
+  bookmarkCode = decodeURIComponent(bookmarkUrl(sources, appBase, await sourceHash(sources)).slice('javascript:'.length));
+  oldBookmarkCode = decodeURIComponent(bookmarkUrl(sources, appBase, '').slice('javascript:'.length));
   browser = await chromium.launch({ channel: 'chromium' });
 });
 
@@ -296,5 +296,18 @@ test('on an existing claim with a summary table first, the expense lines are sti
   const page = await clickAndAllow(context, () => { window.fake.existingClaim = true; window.fake.defaultsOnType = true; });
   await doneWith(page, '2 added');
   assert.deepEqual(await lines(page), ['3:FIETSVG:18', '16:FIETSVG:18', '17:FIETSVG:18']);
+  await context.close();
+});
+
+test('an outdated bookmark fills nothing and says to drag it again', async () => {
+  const context = await newContext();
+  const page = await context.newPage();
+  await page.goto(`${erpBase}e2e/fake-erpx.html`);
+  const popupEvent = context.waitForEvent('page', { timeout: 5000 });
+  await page.evaluate(code => { window.__pedalPayToday = '2026-11-18'; (0, eval)(code); }, oldBookmarkCode);
+  const popup = await popupEvent;
+  await popup.waitForSelector('#handoff-outdated:not([hidden])');
+  await page.waitForSelector('#pedal-pay-message:has-text("out of date")');
+  assert.equal(await page.evaluate(() => window.fake.records.length), 1);
   await context.close();
 });
