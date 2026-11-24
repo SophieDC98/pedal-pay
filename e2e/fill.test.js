@@ -71,10 +71,18 @@ async function clickBookmark(context, before) {
   return { page, popup: await popup };
 }
 
+// Clicks a button in the small window. Allow and Don't allow close that window
+// straight away, which the test tool can report as a failed click; a window
+// that closed after the click counts as clicked.
+async function clickInPopup(popup, selector) {
+  await popup.waitForSelector(`${selector}:not([disabled])`);
+  await popup.click(selector, { noWaitAfter: true }).catch(err => { if (!popup.isClosed()) throw err; });
+}
+
 async function clickAndAllow(context, before) {
   const { page, popup } = await clickBookmark(context, before);
   await popup.waitForSelector('#handoff-ask:not([hidden])');
-  await popup.click('#handoff-allow');
+  await clickInPopup(popup, '#handoff-allow');
   return page;
 }
 
@@ -97,7 +105,7 @@ test('after Allow, the month\'s rides are added with a progress bar, and the pop
   assert.ok(popup, 'the small window opened');
   await popup.waitForSelector('#handoff-ask:not([hidden])');
   assert.match(await popup.textContent('#handoff-host'), /127\.0\.0\.1/);
-  await popup.click('#handoff-allow');
+  await clickInPopup(popup, '#handoff-allow');
 
   await page.waitForSelector('#pedal-pay-progress');
   assert.match(await message(page), /Adding 2 days of November to ERPx/);
@@ -156,7 +164,7 @@ test('Don\'t allow explains what to do and adds nothing', async () => {
   const context = await newContext();
   const { page, popup } = await clickBookmark(context);
   await popup.waitForSelector('#handoff-ask:not([hidden])');
-  await popup.click('#handoff-deny');
+  await clickInPopup(popup, '#handoff-deny');
   await page.waitForSelector('#pedal-pay-message:has-text("chose not to share")');
   assert.equal(await page.locator('#pedal-pay-progress').count(), 0);
   assert.equal(await page.evaluate(() => window.fake.records.length), 1);
@@ -276,7 +284,7 @@ test('a site that is not allowed cannot change the rate', async () => {
   const context = await newContext();
   const { popup } = await clickBookmark(context);
   await popup.waitForSelector('#handoff-ask:not([hidden])');
-  await popup.click('#handoff-deny');
+  await clickInPopup(popup, '#handoff-deny');
   const p = await context.newPage();
   await p.goto(appBase + 'handoff.html');
   assert.equal(await p.evaluate(() => JSON.parse(localStorage.getItem('pedal-pay')).ratePerKm), 0.36);
